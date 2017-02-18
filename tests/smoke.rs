@@ -3,6 +3,8 @@ extern crate backtrace;
 use std::os::raw::c_void;
 use std::thread;
 
+use backtrace::{Backtrace, LazyBacktrace};
+
 static LIBUNWIND: bool = cfg!(all(unix, feature = "libunwind"));
 static UNIX_BACKTRACE: bool = cfg!(all(unix, feature = "unix-backtrace"));
 static LIBBACKTRACE: bool = cfg!(all(unix, feature = "libbacktrace")) &&
@@ -140,6 +142,11 @@ fn many_threads() {
     for t in threads {
         t.join().unwrap()
     }
+}
+
+#[test]
+fn lazy() {
+    let _backtrace: Backtrace = LazyBacktrace::new().resolve();
 }
 
 #[test]

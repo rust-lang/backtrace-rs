@@ -96,7 +96,7 @@ mod backtrace;
 pub use symbolize::{resolve, Symbol, SymbolName};
 mod symbolize;
 
-pub use capture::{Backtrace, BacktraceFrame, BacktraceSymbol};
+pub use capture::{Backtrace, BacktraceFrame, BacktraceSymbol, LazyBacktrace};
 mod capture {
     include!(concat!(env!("OUT_DIR"), "/capture.rs"));
 }

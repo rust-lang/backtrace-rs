@@ -10,6 +10,7 @@
 
 use std::os::raw::c_void;
 
+#[derive(Clone)]
 pub struct Frame {
     ctx: *mut uw::_Unwind_Context,
 }
