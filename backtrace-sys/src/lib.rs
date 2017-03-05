@@ -1,19 +1,16 @@
 #![allow(bad_style)]
 
-extern crate libc;
-
-use libc::uintptr_t;
 use std::os::raw::{c_void, c_char, c_int};
 
 pub type backtrace_syminfo_callback =
     extern fn(data: *mut c_void,
-              pc: uintptr_t,
+              pc: usize,
               symname: *const c_char,
-              symval: uintptr_t,
-              symsize: uintptr_t);
+              symval: usize,
+              symsize: usize);
 pub type backtrace_full_callback =
     extern fn(data: *mut c_void,
-              pc: uintptr_t,
+              pc: usize,
               filename: *const c_char,
               lineno: c_int,
               function: *const c_char) -> c_int;
@@ -31,13 +28,13 @@ extern {
                                   data: *mut c_void) -> *mut backtrace_state;
     #[link_name = "__rbt_backtrace_syminfo"]
     pub fn backtrace_syminfo(state: *mut backtrace_state,
-                             addr: uintptr_t,
+                             addr: usize,
                              cb: backtrace_syminfo_callback,
                              error: backtrace_error_callback,
                              data: *mut c_void) -> c_int;
     #[link_name = "__rbt_backtrace_pcinfo"]
     pub fn backtrace_pcinfo(state: *mut backtrace_state,
-                            addr: uintptr_t,
+                            addr: usize,
                             cb: backtrace_full_callback,
                             error: backtrace_error_callback,
                             data: *mut c_void) -> c_int;
