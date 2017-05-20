@@ -112,6 +112,7 @@ mod helpers {
 }
 
 #[cfg(not(feature = "std"))]
+#[allow(unused)]
 static mut BUF: [u8; 1024] = [0; 1024];
 
 const INVALID_UTF8_SYMBOL: &str = "<not valid utf-8 for symbol>";
