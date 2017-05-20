@@ -11,6 +11,7 @@
 use std::mem;
 use std::os::raw::{c_void, c_int};
 
+#[derive(Clone)]
 pub struct Frame {
     addr: *mut c_void,
 }

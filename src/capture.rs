@@ -27,8 +27,17 @@ use {trace, resolve, SymbolName};
 #[derive(Clone)]
 //~ HACK1 #[derive(RustcDecodable, RustcEncodable)]
 //~ HACK2 #[derive(Deserialize, Serialize)]
-pub struct Backtrace {
-    frames: Vec<BacktraceFrame>,
+pub enum Backtrace {
+    /// A resolved backtrace,
+    Resolved {
+        /// The resolved backtrace frames.
+        frames: Vec<BacktraceFrame>,
+    },
+    /// An unresolved backtrace.
+    Unresolved {
+        /// The unresolved frame captures to resolve in the future.
+        unresolved_frames: Vec<::backtrace::Frame>,
+    },
 }
 
 /// Captured version of a frame in a backtrace.
@@ -94,7 +103,7 @@ impl Backtrace {
             true
         });
 
-        Backtrace { frames: frames }
+        Backtrace::Resolved { frames: frames }
     }
 
     /// Returns the frames from when this backtrace was captured.
@@ -103,13 +112,16 @@ impl Backtrace {
     /// and the last frame is likely something about how this thread or the main
     /// function started.
     pub fn frames(&self) -> &[BacktraceFrame] {
-        &self.frames
+        match self {
+            &Backtrace::Resolved { ref frames } => frames,
+            &Backtrace::Unresolved { .. } => panic!("cannot reference frames of unresolved backtrace"),
+        }
     }
 }
 
 impl From<Vec<BacktraceFrame>> for Backtrace {
     fn from(frames: Vec<BacktraceFrame>) -> Self {
-        Backtrace {
+        Backtrace::Resolved {
             frames: frames
         }
     }
@@ -117,7 +129,10 @@ impl From<Vec<BacktraceFrame>> for Backtrace {
 
 impl Into<Vec<BacktraceFrame>> for Backtrace {
     fn into(self) -> Vec<BacktraceFrame> {
-        self.frames
+        match self {
+            Backtrace::Resolved { frames } => frames,
+            Backtrace::Unresolved { .. } => self.resolve().into()
+        }
     }
 }
 
@@ -205,5 +220,63 @@ impl fmt::Debug for Backtrace {
 impl Default for Backtrace {
     fn default() -> Backtrace {
         Backtrace::new()
+    }
+}
+
+impl Backtrace {
+    /// Like `Backtrace::new`, but does as little job as possible.
+    pub fn new_unresolved() -> Backtrace {
+        let mut frames = Vec::new();
+        trace(|frame| {
+            frames.push(frame.clone());
+            true
+        });
+        Backtrace::Unresolved {
+            unresolved_frames: frames,
+        }
+    }
+
+    /// Get a completely resolved `Backtrace` from a possibly unresolved `Backtrace`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use backtrace::Backtrace;
+    ///
+    /// let unresolved = Backtrace::new_unresolved();
+    /// let resolved = unresolved.resolve();
+    /// assert!(resolved.frames().len() > 0);
+    /// ```
+    pub fn resolve(&self) -> Backtrace {
+        match self {
+            &Backtrace::Resolved { .. } => self.clone(),
+            &Backtrace::Unresolved { ref unresolved_frames } => {
+                println!("a");
+                let mut frames = Vec::new();
+                for frame in unresolved_frames {
+                    println!("b");
+                    let mut symbols = Vec::new();
+                    resolve(frame.ip(), |symbol| {
+                        println!("c");
+                        symbols.push(BacktraceSymbol {
+                            name: symbol.name().map(|m| m.as_bytes().to_vec()),
+                            addr: symbol.addr().map(|a| a as usize),
+                            filename: symbol.filename().map(|m| m.to_path_buf()),
+                            lineno: symbol.lineno(),
+                        });
+                    });
+                    println!("d");
+                    frames.push(BacktraceFrame {
+                        ip: frame.ip() as usize,
+                        symbol_address: frame.symbol_address() as usize,
+                        symbols: symbols,
+                    });
+                    println!("e");
+                }
+                println!("f");
+
+                Backtrace::Resolved { frames: frames }
+            },
+        }
     }
 }

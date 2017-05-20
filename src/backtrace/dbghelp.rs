@@ -14,6 +14,7 @@ use std::mem;
 use winapi::*;
 use kernel32;
 
+#[derive(Clone)]
 pub struct Frame {
     inner: STACKFRAME64,
 }
