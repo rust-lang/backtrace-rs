@@ -8,10 +8,12 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::ffi::CStr;
-use std::mem;
-use std::os::raw::c_void;
+use lib::mem;
+use libc::c_void;
+#[cfg(feature = "std")]
 use std::path::Path;
+#[cfg(feature = "std")]
+use std::ffi::CStr;
 
 use libc::{self, Dl_info};
 
@@ -26,9 +28,9 @@ impl Symbol {
         if self.inner.dli_sname.is_null() {
             None
         } else {
-            Some(SymbolName::new(unsafe {
-                CStr::from_ptr(self.inner.dli_sname).to_bytes()
-            }))
+            unsafe {
+                Some(SymbolName::from_ptr(self.inner.dli_sname))
+            }
         }
     }
 
@@ -36,6 +38,12 @@ impl Symbol {
         Some(self.inner.dli_saddr as *mut _)
     }
 
+    #[cfg(not(feature = "std"))]
+    pub fn filename(&self) -> Option<&[u8]> {
+        None
+    }
+
+    #[cfg(feature = "std")]
     pub fn filename(&self) -> Option<&Path> {
         None
     }

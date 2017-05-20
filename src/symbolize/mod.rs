@@ -1,10 +1,14 @@
-use std::fmt;
-#[cfg(not(feature = "cpp_demangle"))]
-use std::marker::PhantomData;
-use std::os::raw::c_void;
-use std::path::Path;
-use std::str;
+use lib::fmt;
+use libc::{c_void, c_char};
+use lib::str;
+use INVALID_UTF8_SYMBOL;
 use rustc_demangle::{try_demangle, Demangle};
+
+#[cfg(feature = "std")]
+use std::path::Path;
+
+#[cfg(not(feature = "cpp_demangle"))]
+use lib::marker::PhantomData;
 
 /// Resolve an address to a symbol, passing the symbol to the specified
 /// closure.
@@ -78,9 +82,22 @@ impl Symbol {
     /// unix platforms other than OSX) and when a binary is compiled with
     /// debuginfo. If neither of these conditions is met then this will likely
     /// return `None`.
+    #[cfg(feature = "std")]
     pub fn filename(&self) -> Option<&Path> {
         self.inner.filename()
     }
+
+    // FIXME: A generic OsStr-like wrapper is required to allow this to be defined.
+    // /// Returns the file name where this function was defined.
+    // ///
+    // /// This is currently only available when libbacktrace is being used (e.g.
+    // /// unix platforms other than OSX) and when a binary is compiled with
+    // /// debuginfo. If neither of these conditions is met then this will likely
+    // /// return `None`.
+    // #[cfg(not(feature = "std"))]
+    // pub fn filename(&self) -> Option<&[u8]> {
+    //     self.inner.filename()
+    // }
 
     /// Returns the line number for where this symbol is currently executing.
     ///
@@ -100,8 +117,11 @@ impl fmt::Debug for Symbol {
         if let Some(addr) = self.addr() {
             d.field("addr", &addr);
         }
-        if let Some(filename) = self.filename() {
-            d.field("filename", &filename);
+        #[cfg(feature = "std")]
+        {
+            if let Some(filename) = self.filename() {
+                d.field("filename", &filename);
+            }
         }
         if let Some(lineno) = self.lineno() {
             d.field("lineno", &lineno);
@@ -172,6 +192,10 @@ impl<'a> SymbolName<'a> {
         }
     }
 
+    unsafe fn from_ptr(ptr: *const c_char) -> SymbolName<'a> {
+        SymbolName::new(::helpers::make_slice(ptr as *const u8))
+    }
+
     /// Returns the raw symbol name as a `str` if the symbols is valid utf-8.
     pub fn as_str(&self) -> Option<&'a str> {
         self.demangled
@@ -197,7 +221,7 @@ cfg_if! {
                 } else if let Some(ref cpp) = self.cpp_demangled.0 {
                     cpp.fmt(f)
                 } else {
-                    String::from_utf8_lossy(self.bytes).fmt(f)
+                    str::from_utf8(self.bytes).unwrap_or("").fmt(f)
                 }
             }
         }
@@ -207,7 +231,7 @@ cfg_if! {
                 if let Some(ref s) = self.demangled {
                     s.fmt(f)
                 } else {
-                    String::from_utf8_lossy(self.bytes).fmt(f)
+                    str::from_utf8(self.bytes).unwrap_or(INVALID_UTF8_SYMBOL).fmt(f)
                 }
             }
         }
@@ -228,13 +252,12 @@ cfg_if! {
                 // valid, so handle the error here gracefully by not propagating
                 // it outwards.
                 if let Some(ref cpp) = self.cpp_demangled.0 {
-                    let mut s = String::new();
-                    if write!(s, "{}", cpp).is_ok() {
-                        return s.fmt(f)
+                    if let Ok(s) = str::from_utf8(cpp) {
+                        return s.fmt(f);
                     }
                 }
 
-                String::from_utf8_lossy(self.bytes).fmt(f)
+                str::from_utf8(self.bytes).unwrap_or(INVALID_UTF8_SYMBOL).fmt(f)
             }
         }
     } else {
@@ -243,7 +266,7 @@ cfg_if! {
                 if let Some(ref s) = self.demangled {
                     s.fmt(f)
                 } else {
-                    String::from_utf8_lossy(self.bytes).fmt(f)
+                    str::from_utf8(self.bytes).unwrap_or(INVALID_UTF8_SYMBOL).fmt(f)
                 }
             }
         }

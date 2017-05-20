@@ -12,13 +12,11 @@
 
 extern crate backtrace_sys as bt;
 
-use libc::uintptr_t;
-use std::ffi::{CStr, OsStr};
-use std::os::raw::{c_void, c_char, c_int};
-use std::os::unix::prelude::*;
+use libc::{uintptr_t, c_void, c_char, c_int};
+use lib::ptr;
+use lib::sync::{ONCE_INIT, Once};
+#[cfg(feature = "std")]
 use std::path::Path;
-use std::ptr;
-use std::sync::{ONCE_INIT, Once};
 
 use SymbolName;
 
@@ -56,13 +54,26 @@ impl Symbol {
         if pc == 0 {None} else {Some(pc as *mut _)}
     }
 
+    #[cfg(feature = "std")]
     pub fn filename(&self) -> Option<&Path> {
+        use std::ffi::{CStr, OsStr};
+
         match *self {
             Symbol::Syminfo { .. } => None,
             Symbol::Pcinfo { filename, .. } => {
                 Some(Path::new(OsStr::from_bytes(unsafe {
-                    CStr::from_ptr(filename).to_bytes()
+                    CStr::from_ptr(path).to_bytes()
                 })))
+            }
+        }
+    }
+
+    #[cfg(not(feature = "std"))]
+    pub fn filename(&self) -> Option<&[u8]> {
+        match *self {
+            Symbol::Syminfo { .. } => None,
+            Symbol::Pcinfo { filename, .. } => {
+                Some(::helpers::make_slice(filename))
             }
         }
     }

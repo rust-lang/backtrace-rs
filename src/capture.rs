@@ -1,8 +1,12 @@
-use std::fmt;
-use std::mem;
-use std::os::raw::c_void;
+#[cfg(feature = "std")]
+use lib::fmt;
+#[cfg(feature = "std")]
+use lib::mem;
+use libc::c_void;
+#[cfg(feature = "std")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "std")]
 use {trace, resolve, SymbolName};
 
 /// Representation of an owned and self-contained backtrace.
@@ -12,6 +16,7 @@ use {trace, resolve, SymbolName};
 #[derive(Clone)]
 #[cfg_attr(feature = "serialize-rustc", derive(RustcDecodable, RustcEncodable))]
 #[cfg_attr(feature = "serialize-serde", derive(Deserialize, Serialize))]
+#[cfg(feature = "std")]
 pub struct Backtrace {
     frames: Vec<BacktraceFrame>,
 }
@@ -26,6 +31,7 @@ pub struct Backtrace {
 pub struct BacktraceFrame {
     ip: usize,
     symbol_address: usize,
+    #[cfg(feature = "std")]
     symbols: Vec<BacktraceSymbol>,
 }
 
@@ -37,12 +43,15 @@ pub struct BacktraceFrame {
 #[cfg_attr(feature = "serialize-rustc", derive(RustcDecodable, RustcEncodable))]
 #[cfg_attr(feature = "serialize-serde", derive(Deserialize, Serialize))]
 pub struct BacktraceSymbol {
-    name: Option<Vec<u8>>,
     addr: Option<usize>,
-    filename: Option<PathBuf>,
     lineno: Option<u32>,
+    #[cfg(feature = "std")]
+    name: Option<Vec<u8>>,
+    #[cfg(feature = "std")]
+    filename: Option<PathBuf>,
 }
 
+#[cfg(feature = "std")]
 impl Backtrace {
     /// Captures a backtrace at the callsite of this function, returning an
     /// owned representation.
@@ -92,6 +101,7 @@ impl Backtrace {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<Vec<BacktraceFrame>> for Backtrace {
     fn from(frames: Vec<BacktraceFrame>) -> Self {
         Backtrace {
@@ -100,6 +110,7 @@ impl From<Vec<BacktraceFrame>> for Backtrace {
     }
 }
 
+#[cfg(feature = "std")]
 impl Into<Vec<BacktraceFrame>> for Backtrace {
     fn into(self) -> Vec<BacktraceFrame> {
         self.frames
@@ -116,15 +127,14 @@ impl BacktraceFrame {
     pub fn symbol_address(&self) -> *mut c_void {
         self.symbol_address as *mut c_void
     }
-}
 
-impl BacktraceFrame {
     /// Returns the list of symbols that this frame corresponds to.
     ///
     /// Normally there is only one symbol per frame, but sometimes if a number
     /// of functions are inlined into one frame then multiple symbols will be
     /// returned. The first symbol listed is the "innermost function", whereas
     /// the last symbol is the outermost (last caller).
+    #[cfg(feature = "std")]
     pub fn symbols(&self) -> &[BacktraceSymbol] {
         &self.symbols
     }
@@ -132,6 +142,7 @@ impl BacktraceFrame {
 
 impl BacktraceSymbol {
     /// Same as `Symbol::name`
+    #[cfg(feature = "std")]
     pub fn name(&self) -> Option<SymbolName> {
         self.name.as_ref().map(|s| SymbolName::new(s))
     }
@@ -142,6 +153,7 @@ impl BacktraceSymbol {
     }
 
     /// Same as `Symbol::filename`
+    #[cfg(feature = "std")]
     pub fn filename(&self) -> Option<&Path> {
         self.filename.as_ref().map(|p| &**p)
     }
@@ -152,6 +164,7 @@ impl BacktraceSymbol {
     }
 }
 
+#[cfg(feature = "std")]
 impl fmt::Debug for Backtrace {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let hex_width = mem::size_of::<usize>() * 2 + 2;
@@ -187,6 +200,7 @@ impl fmt::Debug for Backtrace {
     }
 }
 
+#[cfg(feature = "std")]
 impl Default for Backtrace {
     fn default() -> Backtrace {
         Backtrace::new()

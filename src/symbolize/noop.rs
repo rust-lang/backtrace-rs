@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::os::raw::c_void;
+use libc::c_void;
 
 use SymbolName;
 

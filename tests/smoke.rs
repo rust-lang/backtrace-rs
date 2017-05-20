@@ -1,6 +1,7 @@
 extern crate backtrace;
+extern crate libc;
 
-use std::os::raw::c_void;
+use libc::c_void;
 use std::thread;
 
 static LIBUNWIND: bool = cfg!(all(unix, feature = "libunwind"));

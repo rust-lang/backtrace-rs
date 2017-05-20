@@ -10,21 +10,28 @@
 
 #![allow(bad_style)]
 
-use std::ffi::OsString;
-use std::mem;
+use libc::{c_void, c_char};
+use lib::mem;
+use lib::Vec;
+#[cfg(feature = "std")]
 use std::path::Path;
-use std::os::windows::prelude::*;
-use std::slice;
+use lib::slice;
 use kernel32;
 use winapi::*;
 
 use SymbolName;
 
 pub struct Symbol {
+    #[cfg(feature = "std")]
     name: OsString,
+    #[cfg(not(feature = "std"))]
+    name: Vec<u16>,
     addr: *mut c_void,
     line: Option<u32>,
-    filename: Option<OsString>,
+    #[cfg(feature = "std")]
+    filename: OsString,
+    #[cfg(not(feature = "std"))]
+    filename: Vec<u16>,
 }
 
 impl Symbol {
@@ -36,9 +43,16 @@ impl Symbol {
         Some(self.addr as *mut _)
     }
 
+    #[cfg(feature = "std")]
     pub fn filename(&self) -> Option<&Path> {
         self.filename.as_ref().map(Path::new)
     }
+
+    // FIXME: We need some generic OsStr like wrapper here
+    //#[cfg(not(feature = "std"))]
+    //pub fn filename(&self) -> Option<&[u16]> {
+    //    self.filename.as_ref().map(|f| &f[..])
+    //}
 
     pub fn lineno(&self) -> Option<u32> {
         self.line
@@ -51,8 +65,8 @@ pub fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
     let _g = ::lock::lock();
 
     unsafe {
-        let size = 2 * MAX_SYM_NAME + mem::size_of::<SYMBOL_INFOW>();
-        let mut data = vec![0u8; size];
+        const SIZE: usize = 2 * MAX_SYM_NAME + mem::size_of::<SYMBOL_INFOW>();
+        let mut data = vec![0; SIZE];
         let info = &mut *(data.as_mut_ptr() as *mut SYMBOL_INFOW);
         info.MaxNameLen = MAX_SYM_NAME as ULONG;
         // the struct size in C.  the value is different to
@@ -72,15 +86,18 @@ pub fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
         }
         let name = slice::from_raw_parts(info.Name.as_ptr() as *const u16,
                                          info.NameLen as usize);
+        #[cfg(feature = "std")]
         let name = OsString::from_wide(name);
+        #[cfg(not(feature = "std"))]
+        let name = Vec::from(name);
 
         let mut line = mem::zeroed::<IMAGEHLP_LINEW64>();
         line.SizeOfStruct = mem::size_of::<IMAGEHLP_LINEW64>() as DWORD;
         let mut displacement = 0;
-        let ret = ::dbghelp::SymGetLineFromAddrW64(kernel32::GetCurrentProcess(),
-                                                   addr as DWORD64,
-                                                   &mut displacement,
-                                                   &mut line);
+        let ret = ::dbghelp::SymGetLineFromAddr64(kernel32::GetCurrentProcess(),
+                                                  addr as DWORD64,
+                                                  &mut displacement,
+                                                  &mut line);
         let mut filename = None;
         let mut lineno = None;
         if ret == TRUE {
@@ -92,7 +109,10 @@ pub fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
                 len += 1;
             }
             let name = slice::from_raw_parts(base, len as usize);
+            #[cfg(feature = "std")]
             filename = Some(OsString::from_wide(name));
+            #[cfg(not(feature = "std"))]
+            filename = Some(Vec::from(name));
         }
 
         cb(&super::Symbol {

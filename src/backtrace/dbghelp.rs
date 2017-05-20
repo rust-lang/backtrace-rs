@@ -10,7 +10,7 @@
 
 #![allow(bad_style)]
 
-use std::mem;
+use core::mem;
 use winapi::*;
 use kernel32;
 

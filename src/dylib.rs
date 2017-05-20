@@ -1,7 +1,6 @@
-use std::ffi::CString;
-use std::marker;
-use std::mem;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use lib::marker;
+use lib::mem;
+use lib::sync::atomic::{AtomicUsize, Ordering};
 
 use libc::{self, c_char, c_void};
 
@@ -22,12 +21,27 @@ impl Dylib {
         })
     }
 
+    #[cfg(feature = "std")]
+    unsafe fn dlopen(path: &str) -> *mut libc::c_void {
+        let name = ::std::ffi::CString::new(path).unwrap();
+        libc::dlopen(name.as_ptr() as *const c_char, libc::RTLD_LAZY)
+    }
+
+    #[cfg(not(feature = "std"))]
+    unsafe fn dlopen(path: &str) -> *mut libc::c_void {
+        use lib::ptr;
+        assert!(path.len() + 1 < ::BUF.len());
+        let buf_ptr = ::BUF.as_ptr() as *const u8;
+        ptr::write(buf_ptr as *mut _, path);
+        ptr::write(buf_ptr.offset(path.len() as isize) as *mut u8, 0);
+        libc::dlopen(buf_ptr as *const c_char, libc::RTLD_LAZY)
+    }
+
     pub unsafe fn init(&self, path: &str) -> bool {
         if self.init.load(Ordering::SeqCst) != 0 {
             return true
         }
-        let name = CString::new(path).unwrap();
-        let ptr = libc::dlopen(name.as_ptr() as *const c_char, libc::RTLD_LAZY);
+        let ptr = Dylib::dlopen(path);
         if ptr.is_null() {
             return false
         }
