@@ -8,7 +8,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::os::raw::c_void;
+use libc::c_void;
 
 pub struct Frame {
     ctx: *mut uw::_Unwind_Context,
@@ -83,8 +83,7 @@ pub fn trace(mut cb: &mut FnMut(&super::Frame) -> bool) {
 mod uw {
     pub use self::_Unwind_Reason_Code::*;
 
-    use libc;
-    use std::os::raw::{c_int, c_void};
+    use libc::{self, c_int, c_void};
 
     #[repr(C)]
     pub enum _Unwind_Reason_Code {

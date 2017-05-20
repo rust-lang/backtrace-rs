@@ -1,6 +1,5 @@
-use std::fmt;
-
-use std::os::raw::c_void;
+use lib::fmt;
+use libc::c_void;
 
 /// Inspects the current call-stack, passing all active frames into the closure
 /// provided to calculate a stack trace.

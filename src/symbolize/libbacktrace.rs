@@ -12,13 +12,12 @@
 
 extern crate backtrace_sys as bt;
 
-use libc::uintptr_t;
-use std::ffi::{CStr, OsStr};
-use std::os::raw::{c_void, c_char, c_int};
-use std::os::unix::prelude::*;
+use libc::{uintptr_t, c_void, c_char, c_int};
+use lib::ptr;
+#[cfg(feature = "std")]
+use lib::sync::{ONCE_INIT, Once};
+#[cfg(feature = "std")]
 use std::path::Path;
-use std::ptr;
-use std::sync::{ONCE_INIT, Once};
 
 use SymbolName;
 
@@ -44,7 +43,7 @@ impl Symbol {
         if ptr.is_null() {
             None
         } else {
-            Some(SymbolName::new(unsafe { CStr::from_ptr(ptr).to_bytes() }))
+            unsafe { Some(SymbolName::from_ptr(ptr)) }
         }
     }
 
@@ -56,16 +55,30 @@ impl Symbol {
         if pc == 0 {None} else {Some(pc as *mut _)}
     }
 
+    #[cfg(feature = "std")]
     pub fn filename(&self) -> Option<&Path> {
+        use std::ffi::{CStr, OsStr};
+
         match *self {
             Symbol::Syminfo { .. } => None,
             Symbol::Pcinfo { filename, .. } => {
                 Some(Path::new(OsStr::from_bytes(unsafe {
-                    CStr::from_ptr(filename).to_bytes()
+                    CStr::from_ptr(path).to_bytes()
                 })))
             }
         }
     }
+
+    // FIXME: OsStr-like required to make this viable
+    // #[cfg(not(feature = "std"))]
+    // pub fn filename(&self) -> Option<&[u8]> {
+    //     match *self {
+    //         Symbol::Syminfo { .. } => None,
+    //         Symbol::Pcinfo { filename, .. } => {
+    //             unsafe { Some(::helpers::make_slice(filename as *const u8)) }
+    //         }
+    //     }
+    // }
 
     pub fn lineno(&self) -> Option<u32> {
         match *self {
@@ -145,6 +158,7 @@ unsafe fn call(data: *mut c_void, sym: &super::Symbol) {
 // evidence at the moment to suggest that a more carefully constructed file
 // can't cause arbitrary code execution. As a result of all of this, we don't
 // hint libbacktrace with the path to the current process.
+#[cfg(feature = "std")]
 unsafe fn init_state() -> *mut bt::backtrace_state {
     static mut STATE: *mut bt::backtrace_state = 0 as *mut _;
     static INIT: Once = ONCE_INIT;
@@ -155,6 +169,16 @@ unsafe fn init_state() -> *mut bt::backtrace_state {
                                            ptr::null_mut());
     });
 
+    STATE
+}
+
+#[cfg(not(feature = "std"))]
+unsafe fn init_state() -> *mut bt::backtrace_state {
+    static mut STATE: *mut bt::backtrace_state = 0 as *mut _;
+    // Our libbacktrace may not have multithreading support, so
+    // set `threaded = 0` and synchronize ourselves.
+    STATE = bt::backtrace_create_state(ptr::null(), 0, error_cb,
+        ptr::null_mut());
     STATE
 }
 

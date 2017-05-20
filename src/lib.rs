@@ -65,6 +65,8 @@
 //! }
 //! ```
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 #![doc(html_root_url = "http://alexcrichton.com/backtrace-rs")]
 #![deny(missing_docs)]
 #![deny(warnings)]
@@ -92,6 +94,29 @@ extern crate rustc_demangle;
 #[cfg(feature = "cpp_demangle")]
 extern crate cpp_demangle;
 
+mod lib {
+    #[cfg(feature = "std")]
+    pub use std::*;
+    #[cfg(not(feature = "std"))]
+    pub use core::*;
+}
+
+mod helpers {
+    use libc;
+    use lib::slice;
+
+    pub unsafe fn make_slice<'a>(ptr: *const u8) -> &'a [u8] {
+        let len = libc::strlen(ptr as *const i8);
+        slice::from_raw_parts(ptr, len as usize + 1)
+    }
+}
+
+#[cfg(not(feature = "std"))]
+#[allow(unused)]
+static mut BUF: [u8; 1024] = [0; 1024];
+
+const INVALID_UTF8_SYMBOL: &str = "<not valid utf-8 for symbol>";
+
 #[allow(dead_code)] // not used everywhere
 #[cfg(unix)]
 #[macro_use]
@@ -103,7 +128,9 @@ mod backtrace;
 pub use symbolize::{resolve, Symbol, SymbolName};
 mod symbolize;
 
-pub use capture::{Backtrace, BacktraceFrame, BacktraceSymbol};
+#[cfg(feature = "std")]
+pub use capture::Backtrace;
+pub use capture::{BacktraceFrame, BacktraceSymbol};
 mod capture;
 
 #[allow(dead_code)]
@@ -121,6 +148,7 @@ impl Drop for Bomb {
 }
 
 #[allow(dead_code)]
+#[cfg(feature = "std")]
 mod lock {
     use std::cell::Cell;
     use std::mem;
@@ -152,6 +180,16 @@ mod lock {
             });
             Some(LockGuard((*LOCK).lock().unwrap()))
         }
+    }
+}
+
+#[allow(dead_code)]
+#[cfg(not(feature = "std"))]
+mod lock {
+    pub struct LockGuard;
+
+    pub fn lock() -> Option<LockGuard> {
+        None
     }
 }
 

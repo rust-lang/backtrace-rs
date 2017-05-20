@@ -10,13 +10,15 @@
 
 #![allow(bad_style)]
 
-use std::ffi::{CStr, OsStr};
-use std::mem;
-use std::os::raw::{c_void, c_char, c_int};
+use lib::mem;
+use lib::ptr;
+use lib::sync::atomic::ATOMIC_USIZE_INIT;
+use libc::{c_void, c_char, c_int};
+
+#[cfg(feature = "std")]
 use std::os::unix::prelude::*;
+#[cfg(feature = "std")]
 use std::path::Path;
-use std::ptr;
-use std::sync::atomic::ATOMIC_USIZE_INIT;
 
 use libc::{self, Dl_info};
 
@@ -56,9 +58,7 @@ impl Symbol {
         if name.is_null() {
             None
         } else {
-            Some(SymbolName::new(unsafe {
-                CStr::from_ptr(name).to_bytes()
-            }))
+            unsafe { Some(SymbolName::from_ptr(name)) }
         }
     }
 
@@ -69,7 +69,10 @@ impl Symbol {
         }
     }
 
+    #[cfg(feature = "std")]
     pub fn filename(&self) -> Option<&Path> {
+        use std::ffi::{CStr, OsStr};
+
         match *self {
             Symbol::Core { path, .. } => {
                 if path.is_null() {
@@ -83,6 +86,21 @@ impl Symbol {
             Symbol::Dladdr(_) => None,
         }
     }
+
+    // FIXME: OsStr like wrapper is required.
+    // #[cfg(not(feature = "std"))]
+    // pub fn filename(&self) -> Option<&[u8]> {
+    //     match *self {
+    //         Symbol::Core { path, .. } => {
+    //             if path.is_null() {
+    //                 None
+    //             } else {
+    //                 unsafe { Some(::helpers::make_slice(path as *const u8)) }
+    //             }
+    //         }
+    //         Symbol::Dladdr(_) => None,
+    //     }
+    // }
 
     pub fn lineno(&self) -> Option<u32> {
         match *self {
@@ -102,8 +120,8 @@ macro_rules! dlsym {
         static $name: ::dylib::Symbol<unsafe extern fn($($t),*) -> $ret> =
             ::dylib::Symbol {
                 name: concat!(stringify!($name), "\0"),
-                addr: ::std::sync::atomic::ATOMIC_USIZE_INIT,
-                _marker: ::std::marker::PhantomData,
+                addr: ::lib::sync::atomic::ATOMIC_USIZE_INIT,
+                _marker: ::lib::marker::PhantomData,
             };
     )*)
 }

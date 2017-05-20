@@ -8,8 +8,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::mem;
-use std::os::raw::{c_void, c_int};
+use lib::mem;
+use libc::{c_void, c_int};
 
 pub struct Frame {
     addr: *mut c_void,
