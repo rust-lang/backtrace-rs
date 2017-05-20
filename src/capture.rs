@@ -207,3 +207,54 @@ impl Default for Backtrace {
         Backtrace::new()
     }
 }
+
+/// Like `Backtrace`, but tries to do as little as possible during creation.
+pub struct LazyBacktrace {
+    frames: Vec<::backtrace::Frame>,
+}
+
+impl LazyBacktrace {
+    /// Like `Backtrace::new`, but does as little job as possible.
+    pub fn new() -> LazyBacktrace {
+        let mut frames = Vec::new();
+        trace(|frame| {
+            frames.push(frame.clone());
+            true
+        });
+        LazyBacktrace {
+            frames: frames,
+        }
+    }
+
+    /// Get a complete `Backtrace` from a `LazyBacktrace`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use backtrace::{Backtrace, LazyBacktrace};
+    ///
+    /// let lazy_backtrace = LazyBacktrace::new();
+    /// let backtrace = lazy_backtrace.resolve();
+    /// ```
+    pub fn resolve(&self) -> Backtrace {
+        let mut frames = Vec::new();
+        for frame in &self.frames {
+            let mut symbols = Vec::new();
+            resolve(frame.ip(), |symbol| {
+                symbols.push(BacktraceSymbol {
+                    name: symbol.name().map(|m| m.as_bytes().to_vec()),
+                    addr: symbol.addr().map(|a| a as usize),
+                    filename: symbol.filename().map(|m| m.to_path_buf()),
+                    lineno: symbol.lineno(),
+                });
+            });
+            frames.push(BacktraceFrame {
+                ip: frame.ip() as usize,
+                symbol_address: frame.symbol_address() as usize,
+                symbols: symbols,
+            });
+        }
+
+        Backtrace { frames: frames }
+    }
+}

@@ -48,6 +48,7 @@ pub fn trace<F: FnMut(&Frame) -> bool>(mut cb: F) {
 /// The tracing function's closure will be yielded frames, and the frame is
 /// virtually dispatched as the underlying implementation is not always known
 /// until runtime.
+#[derive(Clone)]
 pub struct Frame {
     inner: FrameImp,
 }
