@@ -40,6 +40,39 @@ fn find_tool(compiler: &cc::Tool, cc: &str, tool: &str) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(tool))
 }
 
+fn compiler_whitelist_prefix(compiler: &cc::Tool) -> Option<String> {
+    let whitelist = ["ccache", "distcc", "sccache"];
+    let cc = compiler.path().file_name().unwrap().to_str().unwrap();
+
+    whitelist.iter().find(|t| cc == **t).map(|t| t.to_string())
+}
+
+fn compiler_cc_variable(compiler: &cc::Tool) -> String {
+    let cc = compiler.path().file_name().unwrap().to_str().unwrap();
+
+    match compiler_whitelist_prefix(compiler) {
+        Some(prefix) => prefix + " " + compiler.args()[0].to_str().unwrap(),
+        None => cc.to_string()
+    }
+}
+
+fn compiler_flags(compiler: &cc::Tool) -> OsString {
+    let compiler_in_whitelist = compiler_whitelist_prefix(compiler).is_some();
+    let mut flags = OsString::new();
+    for (i, flag) in compiler
+        .args()
+        .iter()
+        .skip(if compiler_in_whitelist { 1 } else { 0 })
+        .enumerate()
+    {
+        if i > 0 {
+            flags.push(" ");
+        }
+        flags.push(flag);
+    }
+    flags
+}
+
 fn main() {
     let src = env::current_dir().unwrap();
     let dst = PathBuf::from(env::var_os("OUT_DIR").unwrap());
@@ -89,23 +122,17 @@ fn main() {
 
     let cfg = cc::Build::new();
     let compiler = cfg.get_compiler();
-    let cc = compiler.path().file_name().unwrap().to_str().unwrap();
-    let mut flags = OsString::new();
-    for (i, flag) in compiler.args().iter().enumerate() {
-        if i > 0 {
-            flags.push(" ");
-        }
-        flags.push(flag);
-    }
-    let ar = find_tool(&compiler, cc, "ar");
-    let ranlib = find_tool(&compiler, cc, "ranlib");
+    let cc = compiler_cc_variable(&compiler);
+    let flags = compiler_flags(&compiler);
+    let ar = find_tool(&compiler, &cc, "ar");
+    let ranlib = find_tool(&compiler, &cc, "ranlib");
     let mut cmd = Command::new("sh");
 
     cmd.arg(configure)
        .current_dir(&dst)
        .env("AR", &ar)
        .env("RANLIB", &ranlib)
-       .env("CC", compiler.path())
+       .env("CC", cc.clone())
        .env("CFLAGS", flags)
        .arg("--with-pic")
        .arg("--disable-multilib")
@@ -146,7 +173,7 @@ fn main() {
 
     t!(fs::remove_file(&lib));
     let mut objs = Vec::new();
-    let objcopy = find_tool(&compiler, cc, "objcopy");
+    let objcopy = find_tool(&compiler, &cc, "objcopy");
     for obj in t!(tmpdir.read_dir()) {
         let obj = t!(obj);
         run(Command::new(&objcopy)
