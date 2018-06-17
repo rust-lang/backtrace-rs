@@ -55,6 +55,7 @@ fn main() {
 
     File::create(out_dir.join("config.h")).unwrap();
     if !target.contains("apple-ios") &&
+       !target.contains("freebsd") &&
        !target.contains("solaris") &&
        !target.contains("redox") &&
        !target.contains("android") {
