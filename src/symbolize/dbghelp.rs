@@ -19,8 +19,34 @@ use winapi::ctypes::*;
 use winapi::shared::basetsd::*;
 use winapi::shared::minwindef::*;
 use winapi::um::processthreadsapi;
-use winapi::um::dbghelp;
 use winapi::um::dbghelp::*;
+
+#[cfg(any(target_env = "msvc", not(feature = "mgwhelp")))]
+mod help {
+    pub use winapi::um::dbghelp::{SymFromAddrW, SymGetLineFromAddrW64};
+}
+
+#[cfg(all(target_env = "gnu", feature = "mgwhelp"))]
+mod help {
+    use super::*;
+    use winapi::um::winnt::HANDLE;
+
+    #[link(name = "mgwhelp")]
+    extern {
+        pub fn SymFromAddrW(
+            hProcess: HANDLE,
+            Address: DWORD64,
+            Displacement: PDWORD64,
+            Symbol: PSYMBOL_INFOW,
+        ) -> BOOL;
+        pub fn SymGetLineFromAddrW64(
+            hProcess: HANDLE,
+            dwAddr: DWORD64,
+            pdwDisplacement: PDWORD,
+            Line: PIMAGEHLP_LINEW64,
+        ) -> BOOL;
+    }
+}
 
 use SymbolName;
 
@@ -67,7 +93,7 @@ pub fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
         let _c = ::dbghelp_init();
 
         let mut displacement = 0u64;
-        let ret = dbghelp::SymFromAddrW(processthreadsapi::GetCurrentProcess(),
+        let ret = help::SymFromAddrW(processthreadsapi::GetCurrentProcess(),
                                           addr as DWORD64,
                                           &mut displacement,
                                           info);
@@ -88,7 +114,7 @@ pub fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
         let mut line = mem::zeroed::<IMAGEHLP_LINEW64>();
         line.SizeOfStruct = mem::size_of::<IMAGEHLP_LINEW64>() as DWORD;
         let mut displacement = 0;
-        let ret = dbghelp::SymGetLineFromAddrW64(processthreadsapi::GetCurrentProcess(),
+        let ret = help::SymGetLineFromAddrW64(processthreadsapi::GetCurrentProcess(),
                                                    addr as DWORD64,
                                                    &mut displacement,
                                                    &mut line);
