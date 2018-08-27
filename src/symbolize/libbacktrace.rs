@@ -12,9 +12,11 @@
 
 extern crate backtrace_sys as bt;
 
+use std::borrow::Cow;
 use libc::uintptr_t;
-use std::ffi::{CStr, OsStr};
+use std::ffi::{CStr};
 use std::os::raw::{c_void, c_char, c_int};
+#[cfg(unix)]
 use std::os::unix::prelude::*;
 use std::path::Path;
 use std::ptr;
@@ -56,13 +58,31 @@ impl Symbol {
         if pc == 0 {None} else {Some(pc as *mut _)}
     }
 
-    pub fn filename(&self) -> Option<&Path> {
+    #[cfg(unix)]
+    pub fn filename(&self) -> Option<Cow<Path>> {
+        use std::ffi::OsStr;
+
         match *self {
             Symbol::Syminfo { .. } => None,
             Symbol::Pcinfo { filename, .. } => {
-                Some(Path::new(OsStr::from_bytes(unsafe {
+                Some(Cow::Borrowed(Path::new(OsStr::from_bytes(unsafe {
                     CStr::from_ptr(filename).to_bytes()
-                })))
+                }))))
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    pub fn filename(&self) -> Option<Cow<Path>> {
+        use std::path::PathBuf;
+        use std::ffi::OsString;
+
+        match *self {
+            Symbol::Syminfo { .. } => None,
+            Symbol::Pcinfo { filename, .. } => {
+                Some(Cow::Owned(PathBuf::from(OsString::from(unsafe {
+                    CStr::from_ptr(filename).to_string_lossy().to_string()
+                }))))
             }
         }
     }

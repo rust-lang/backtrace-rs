@@ -35,6 +35,10 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.3", optional = true, features = ["std", "dbghelp", "processthreadsapi", "winnt", "minwindef"] }
 
+[target.'cfg(all(windows, not(target_env = "msvc")))'.dependencies]
+backtrace-sys = { path = "backtrace-sys", version = "0.1.17", optional = true }
+libc = "0.2"
+
 [target.'cfg(all(unix, not(target_os = "fuchsia"), not(target_os = "emscripten"), not(target_os = "macos"), not(target_os = "ios")))'.dependencies]
 backtrace-sys = { path = "backtrace-sys", version = "0.1.17", optional = true }
 

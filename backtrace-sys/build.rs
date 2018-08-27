@@ -7,11 +7,6 @@ use std::fs::File;
 fn main() {
     let target = env::var("TARGET").unwrap();
 
-    // libbacktrace isn't used on windows
-    if target.contains("windows") {
-        return
-    }
-
     // no way this will ever compile for emscripten
     if target.contains("emscripten") {
         return

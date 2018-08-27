@@ -70,6 +70,10 @@
 
 #[cfg(unix)]
 extern crate libc;
+
+#[cfg(all(windows, not(target_env = "msvc")))]
+extern crate libc;
+
 #[cfg(all(windows, feature = "winapi"))] extern crate winapi;
 
 #[cfg(feature = "serde_derive")]

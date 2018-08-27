@@ -10,6 +10,7 @@
 
 #![allow(bad_style)]
 
+use std::borrow::Cow;
 use std::ffi::OsString;
 use std::mem;
 use std::path::Path;
@@ -40,8 +41,8 @@ impl Symbol {
         Some(self.addr as *mut _)
     }
 
-    pub fn filename(&self) -> Option<&Path> {
-        self.filename.as_ref().map(Path::new)
+    pub fn filename(&self) -> Option<Cow<Path>> {
+        self.filename.as_ref().map(Path::new).map(Cow::Borrowed)
     }
 
     pub fn lineno(&self) -> Option<u32> {
