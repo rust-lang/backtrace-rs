@@ -10,7 +10,6 @@
 
 #![allow(bad_style)]
 
-use std::borrow::Cow;
 use std::ffi::{CStr, OsStr};
 use std::mem;
 use std::os::raw::{c_void, c_char, c_int};
@@ -70,15 +69,15 @@ impl Symbol {
         }
     }
 
-    pub fn filename(&self) -> Option<Cow<Path>> {
+    pub fn filename(&self) -> Option<&Path> {
         match *self {
             Symbol::Core { path, .. } => {
                 if path.is_null() {
                     None
                 } else {
-                    Some(Cow::Borrowed(Path::new(OsStr::from_bytes(unsafe {
+                    Some(Path::new(OsStr::from_bytes(unsafe {
                         CStr::from_ptr(path).to_bytes()
-                    }))))
+                    })))
                 }
             }
             Symbol::Dladdr(_) => None,

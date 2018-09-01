@@ -3,7 +3,6 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::os::raw::c_void;
 use std::path::Path;
-use std::borrow::Cow;
 use std::str;
 use rustc_demangle::{try_demangle, Demangle};
 
@@ -79,7 +78,7 @@ impl Symbol {
     /// unix platforms other than OSX) and when a binary is compiled with
     /// debuginfo. If neither of these conditions is met then this will likely
     /// return `None`.
-    pub fn filename(&self) -> Option<Cow<Path>> {
+    pub fn filename(&self) -> Option<&Path> {
         self.inner.filename()
     }
 
@@ -256,10 +255,6 @@ cfg_if! {
         mod dbghelp;
         use self::dbghelp::resolve as resolve_imp;
         use self::dbghelp::Symbol as SymbolImp;
-    } else if #[cfg(all(windows, not(target_env = "msvc"), feature = "libbacktrace"))] {
-        mod libbacktrace;
-        use self::libbacktrace::resolve as resolve_imp;
-        use self::libbacktrace::Symbol as SymbolImp;
     } else if #[cfg(all(feature = "gimli-symbolize",
                         unix,
                         target_os = "linux"))] {
@@ -267,7 +262,7 @@ cfg_if! {
         use self::gimli::resolve as resolve_imp;
         use self::gimli::Symbol as SymbolImp;
     } else if #[cfg(all(feature = "libbacktrace",
-                        unix,
+                        not(target_env = "msvc"),
                         not(target_os = "fuchsia"),
                         not(target_os = "emscripten"),
                         not(target_os = "macos"),

@@ -3,7 +3,6 @@ use findshlibs::{self, Segment, SharedLibrary};
 use gimli;
 use memmap::Mmap;
 use object::{self, Object};
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::env;
 use std::fs::File;
@@ -210,8 +209,8 @@ impl Symbol {
         Some(self.addr as *mut c_void)
     }
 
-    pub fn filename(&self) -> Option<Cow<Path>> {
-        self.file.as_ref().map(|f| Cow::Borrowed(f.as_ref()))
+    pub fn filename(&self) -> Option<&Path> {
+        self.file.as_ref().map(|f| f.as_ref())
     }
 
     pub fn lineno(&self) -> Option<u32> {

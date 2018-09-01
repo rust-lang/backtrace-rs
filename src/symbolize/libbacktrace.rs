@@ -12,12 +12,13 @@
 
 extern crate backtrace_sys as bt;
 
-use std::borrow::Cow;
 use libc::uintptr_t;
 use std::ffi::{CStr};
 use std::os::raw::{c_void, c_char, c_int};
 #[cfg(unix)]
 use std::os::unix::prelude::*;
+#[cfg(windows)]
+use std::path::PathBuf;
 use std::path::Path;
 use std::ptr;
 use std::sync::{ONCE_INIT, Once};
@@ -32,6 +33,8 @@ pub enum Symbol {
     Pcinfo {
         pc: uintptr_t,
         filename: *const c_char,
+        #[cfg(windows)]
+        win_filename: PathBuf,
         lineno: c_int,
         function: *const c_char,
     },
@@ -58,31 +61,18 @@ impl Symbol {
         if pc == 0 {None} else {Some(pc as *mut _)}
     }
 
-    #[cfg(unix)]
-    pub fn filename(&self) -> Option<Cow<Path>> {
-        use std::ffi::OsStr;
-
+    pub fn filename(&self) -> Option<&Path> {
         match *self {
             Symbol::Syminfo { .. } => None,
-            Symbol::Pcinfo { filename, .. } => {
-                Some(Cow::Borrowed(Path::new(OsStr::from_bytes(unsafe {
-                    CStr::from_ptr(filename).to_bytes()
-                }))))
+            #[cfg(windows)]
+            Symbol::Pcinfo { ref win_filename, .. } => {
+                Some(win_filename.as_path())
             }
-        }
-    }
-
-    #[cfg(windows)]
-    pub fn filename(&self) -> Option<Cow<Path>> {
-        use std::path::PathBuf;
-        use std::ffi::OsString;
-
-        match *self {
-            Symbol::Syminfo { .. } => None,
+            #[cfg(not(windows))]
             Symbol::Pcinfo { filename, .. } => {
-                Some(Cow::Owned(PathBuf::from(OsString::from(unsafe {
-                    CStr::from_ptr(filename).to_string_lossy().to_string()
-                }))))
+                Some(Path::new(OsStr::from_bytes(unsafe {
+                    CStr::from_ptr(filename).to_bytes()
+                })))
             }
         }
     }
@@ -115,6 +105,16 @@ extern fn syminfo_cb(data: *mut c_void,
     }
 }
 
+#[cfg(windows)]
+fn generate_pathbuf_from_c_filename(filename: *const c_char) -> PathBuf {
+    use std::ffi::OsString;
+
+    // FIXME: filename is not UTF-8 on windows.
+    PathBuf::from(OsString::from(unsafe {
+        CStr::from_ptr(filename).to_string_lossy().to_string()
+    }))
+}
+
 extern fn pcinfo_cb(data: *mut c_void,
                     pc: uintptr_t,
                     filename: *const c_char,
@@ -128,6 +128,8 @@ extern fn pcinfo_cb(data: *mut c_void,
             inner: Symbol::Pcinfo {
                 pc: pc,
                 filename: filename,
+                #[cfg(windows)]
+                win_filename: generate_pathbuf_from_c_filename(filename),
                 lineno: lineno,
                 function: function,
             },

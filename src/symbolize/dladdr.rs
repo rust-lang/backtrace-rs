@@ -8,7 +8,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::borrow::Cow;
 use std::ffi::CStr;
 use std::mem;
 use std::os::raw::c_void;
@@ -37,7 +36,7 @@ impl Symbol {
         Some(self.inner.dli_saddr as *mut _)
     }
 
-    pub fn filename(&self) -> Option<Cow<Path>> {
+    pub fn filename(&self) -> Option<&Path> {
         None
     }
 

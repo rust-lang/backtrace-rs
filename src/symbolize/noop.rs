@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::path::Path;
 use std::os::raw::c_void;
 
@@ -18,7 +17,7 @@ impl Symbol {
         None
     }
 
-    pub fn filename(&self) -> Option<Cow<Path>> {
+    pub fn filename(&self) -> Option<&Path> {
         None
     }
 
