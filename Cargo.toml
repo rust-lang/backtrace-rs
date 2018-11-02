@@ -13,6 +13,7 @@ A library to acquire a stack trace (backtrace) at runtime in a Rust program.
 """
 autoexamples = true
 autotests = true
+exclude = ["/ci/*", "/.travis.yml", "/appveyor.yml"]
 
 [dependencies]
 cfg-if = "0.1"
