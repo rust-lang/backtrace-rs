@@ -16,7 +16,8 @@ use std::ffi::CStr;
 use std::{ptr, slice};
 use std::sync::{ONCE_INIT, Once};
 
-use libc::{self, c_char, c_int, c_void, uintptr_t};
+use libc::{self, c_char, c_int, uintptr_t};
+use types::c_void;
 
 use SymbolName;
 
