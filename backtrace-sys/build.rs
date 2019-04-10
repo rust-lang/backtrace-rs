@@ -36,7 +36,7 @@ fn main() {
 
     if target.contains("darwin") {
         build.file("src/libbacktrace/macho.c");
-    } else if target.contains("windows") {
+    } else if target.contains("windows") || target.contains("uwp") {
         build.file("src/libbacktrace/pecoff.c");
     } else {
         build.file("src/libbacktrace/elf.c");
