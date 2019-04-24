@@ -187,10 +187,33 @@ unsafe fn dbghelp_init() {
 
     static mut INITIALIZED: bool = false;
 
+    #[cfg(feature = "std")]
+    fn dbghelp_init_cleanup() {
+        static SET_HOOK: std::sync::Once = std::sync::ONCE_INIT;
+
+        SET_HOOK.call_once(|| {
+            let default_hook = std::panic::take_hook();
+            std::panic::set_hook(std::boxed::Box::new(move |panic_info| {
+                // The default unwind hook calls `SymInitializeW`, which will fail and prevent
+                // the panic backtrace from being printed if we do not first call `SymCleanup`.
+                unsafe {
+                    INITIALIZED = false;
+                    dbghelp::SymCleanup(processthreadsapi::GetCurrentProcess());
+                }
+                default_hook(panic_info);
+            }))
+        })
+    }
+
+    #[cfg(not(feature = "std"))]
+    fn dbghelp_init_cleanup() {}
+
     if !INITIALIZED {
+        INITIALIZED = true;
+
         dbghelp::SymInitializeW(processthreadsapi::GetCurrentProcess(),
                                 0 as *mut _,
                                 minwindef::TRUE);
-        INITIALIZED = true;
+        dbghelp_init_cleanup();
     }
 }
