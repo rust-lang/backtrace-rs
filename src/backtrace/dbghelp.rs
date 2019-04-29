@@ -87,7 +87,7 @@ fn init_frame(frame: &mut STACKFRAME64, ctx: &CONTEXT) -> WORD {
     winnt::IMAGE_FILE_MACHINE_AMD64
 }
 
-#[cfg(target_arch = "x86")]
+#[cfg(any(target_arch = "x86", target_arch = "arm"))]
 fn init_frame(frame: &mut STACKFRAME64, ctx: &CONTEXT) -> WORD {
     frame.AddrPC.Offset = ctx.Eip as u64;
     frame.AddrPC.Mode = AddrModeFlat;
