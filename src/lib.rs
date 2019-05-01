@@ -104,6 +104,13 @@ cfg_if! {
     }
 }
 
+#[cfg(test)]
+#[macro_use]
+extern crate doc_comment;
+
+#[cfg(test)]
+doctest!("../README.md");
+
 #[allow(dead_code)] // not used everywhere
 #[cfg(unix)]
 #[macro_use]

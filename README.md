@@ -31,14 +31,20 @@ you can use the top-level `Backtrace` type.
 ```rust
 extern crate backtrace;
 
+#[cfg(feature = "std")]
 use backtrace::Backtrace;
 
+#[cfg(feature = "std")]
 fn main() {
     let bt = Backtrace::new();
 
     // do_some_work();
 
     println!("{:?}", bt);
+}
+#[cfg(not(feature = "std"))]
+fn main() {
+    println!("You need to enable std feature!");
 }
 ```
 
@@ -49,6 +55,7 @@ can use the `trace` and `resolve` functions directly.
 extern crate backtrace;
 
 fn main() {
+    #[cfg(feature = "std")]
     backtrace::trace(|frame| {
         let ip = frame.ip();
         let symbol_address = frame.symbol_address();
