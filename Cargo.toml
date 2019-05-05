@@ -72,7 +72,7 @@ std = []
 libunwind = []
 unix-backtrace = []
 dbghelp = ["std"]
-kernel32 = []
+kernel32 = ["dbghelp"]
 
 #=======================================
 # Methods of resolving symbols

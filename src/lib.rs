@@ -184,6 +184,17 @@ struct Cleanup {
 }
 
 #[cfg(all(windows, feature = "dbghelp"))]
+enum Trace {
+    Inside(Option<Cleanup>),
+    Outside,
+}
+
+thread_local! {
+    #[cfg(all(windows, feature = "dbghelp"))]
+    static TRACE_CLEANUP: std::cell::RefCell<Trace> = std::cell::RefCell::new(Trace::Outside);
+}
+
+#[cfg(all(windows, feature = "dbghelp"))]
 unsafe fn dbghelp_init() -> Option<Cleanup> {
     use winapi::shared::minwindef;
     use winapi::um::{dbghelp, processthreadsapi};
@@ -225,6 +236,19 @@ unsafe fn dbghelp_init() -> Option<Cleanup> {
                     dbghelp::SymCleanup(self.handle);
                     SymSetOptions(self.opts);
                 }
+            }
+        }
+    }
+
+    impl Clone for Cleanup {
+        fn clone(&self) -> Cleanup {
+            unsafe {
+                let mut ref_count_guard = (&*REF_COUNT).lock().unwrap();
+                *ref_count_guard += 1;
+            }
+            Cleanup {
+                opts: self.opts,
+                handle: self.handle
             }
         }
     }

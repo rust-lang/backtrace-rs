@@ -38,6 +38,17 @@ impl Frame {
 #[repr(C, align(16))] // required by `CONTEXT`, is a FIXME in winapi right now
 struct MyContext(CONTEXT);
 
+struct CleanupOnDrop;
+
+impl Drop for CleanupOnDrop {
+    fn drop(&mut self) {
+        ::TRACE_CLEANUP.with(|trace_cleanup| {
+            let mut trace_cleanup = trace_cleanup.borrow_mut();
+            *trace_cleanup = ::Trace::Outside;
+        });
+    }
+}
+
 #[inline(always)]
 pub unsafe fn trace(cb: &mut FnMut(&super::Frame) -> bool) {
     // Allocate necessary structures for doing the stack walk
@@ -51,28 +62,66 @@ pub unsafe fn trace(cb: &mut FnMut(&super::Frame) -> bool) {
     };
     let image = init_frame(&mut frame.inner.inner, &context.0);
 
-    // Initialize this process's symbols
-    let _c = ::dbghelp_init();
+    let cleanup_on_drop = CleanupOnDrop;
 
-    // And now that we're done with all the setup, do the stack walking!
-    while dbghelp::StackWalk64(image as DWORD,
-                               process,
-                               thread,
-                               &mut frame.inner.inner,
-                               &mut context.0 as *mut CONTEXT as *mut _,
-                               None,
-                               Some(dbghelp::SymFunctionTableAccess64),
-                               Some(dbghelp::SymGetModuleBase64),
-                               None) == TRUE {
-        if frame.inner.inner.AddrPC.Offset == frame.inner.inner.AddrReturn.Offset ||
-            frame.inner.inner.AddrPC.Offset == 0 ||
-                frame.inner.inner.AddrReturn.Offset == 0 {
-                    break
+    ::TRACE_CLEANUP.with(|trace_cleanup| {
+        let mut trace_cleanup = trace_cleanup.borrow_mut();
+        *trace_cleanup = ::Trace::Inside(None);
+    });
+
+    if cfg!(feature = "kernel32") {
+        let frames_to_capture = 62;
+        let mut frames_to_skip = 0;
+        let mut backtrace = vec![0_usize; frames_to_capture as usize];
+        let mut backtrace_hash = 0;
+
+        loop {
+            let num_captured_frames = winapi::um::winnt::RtlCaptureStackBackTrace(
+                frames_to_skip,
+                frames_to_capture,
+                backtrace.as_mut_ptr() as _,
+                &mut backtrace_hash
+            );
+
+            for i in 0..num_captured_frames as u32 {
+                frame.inner.inner.AddrPC.Offset = backtrace[i as usize] as _;
+                if !cb(&frame) {
+                    break;
                 }
+            }
 
-        if !cb(&frame) {
-            break
+            frames_to_skip += num_captured_frames as u32;
+
+            if num_captured_frames == 0 {
+                break;
+            }
         }
+    } else {
+        // Initialize this process's symbols
+        let _c = ::dbghelp_init();
+
+        // And now that we're done with all the setup, do the stack walking!
+        while dbghelp::StackWalk64(image as DWORD,
+                                   process,
+                                   thread,
+                                   &mut frame.inner.inner,
+                                   &mut context.0 as *mut CONTEXT as *mut _,
+                                   None,
+                                   Some(dbghelp::SymFunctionTableAccess64),
+                                   Some(dbghelp::SymGetModuleBase64),
+                                   None) == TRUE {
+            if frame.inner.inner.AddrPC.Offset == frame.inner.inner.AddrReturn.Offset ||
+                frame.inner.inner.AddrPC.Offset == 0 ||
+                frame.inner.inner.AddrReturn.Offset == 0 {
+                break
+            }
+
+            if !cb(&frame) {
+                break
+            }
+        }
+
+        drop(cleanup_on_drop);
     }
 }
 

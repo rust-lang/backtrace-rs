@@ -88,6 +88,18 @@ pub unsafe fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
 
     let _c = ::dbghelp_init();
 
+    ::TRACE_CLEANUP.with(|trace_cleanup| {
+        use ::Trace;
+        let mut trace_cleanup = trace_cleanup.borrow_mut();
+        match *trace_cleanup {
+            Trace::Outside => {},
+            Trace::Inside(Some(_)) => {},
+            Trace::Inside(None) => {
+                *trace_cleanup = Trace::Inside(_c.clone());
+            }
+        }
+    });
+
     let mut displacement = 0u64;
     let ret = dbghelp::SymFromAddrW(processthreadsapi::GetCurrentProcess(),
                                     addr as DWORD64,
