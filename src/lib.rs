@@ -178,29 +178,18 @@ mod lock {
 }
 
 #[cfg(all(windows, feature = "dbghelp"))]
-struct Cleanup {
-    handle: winapi::um::winnt::HANDLE,
-    opts: winapi::shared::minwindef::DWORD,
-}
+mod dbghelp {
+    use core::marker::PhantomData;
+    use winapi::um::dbghelp::{SymInitializeW, SymCleanup};
 
-#[cfg(all(windows, feature = "dbghelp"))]
-enum Trace {
-    Inside(Option<Cleanup>),
-    Outside,
-}
+    // Not sure why these are missing in winapi
 
-thread_local! {
-    #[cfg(all(windows, feature = "dbghelp"))]
-    static TRACE_CLEANUP: std::cell::RefCell<Trace> = std::cell::RefCell::new(Trace::Outside);
-}
+    const SYMOPT_DEFERRED_LOADS: winapi::shared::minwindef::DWORD = 0x00000004;
 
-#[cfg(all(windows, feature = "dbghelp"))]
-unsafe fn dbghelp_init() -> Option<Cleanup> {
-    use winapi::shared::minwindef;
-    use winapi::um::{dbghelp, processthreadsapi};
-
-    use std::sync::{Mutex, Once, ONCE_INIT};
-    use std::boxed::Box;
+    extern "system" {
+        fn SymGetOptions() -> winapi::shared::minwindef::DWORD;
+        fn SymSetOptions(options: winapi::shared::minwindef::DWORD);
+    }
 
     // Initializing symbols has significant overhead, but initializing only once
     // without cleanup causes problems for external sources. For example, the
@@ -212,68 +201,84 @@ unsafe fn dbghelp_init() -> Option<Cleanup> {
     // As a compromise, we'll keep track of the number of internal initialization
     // requests within a single API call in order to minimize the number of
     // init/cleanup cycles.
-    static mut REF_COUNT: *mut Mutex<usize> = 0 as *mut _;
-    static mut INIT: Once = ONCE_INIT;
+    static mut DBGHELP: DbgHelp = DbgHelp {
+        ref_count: 0,
+        opts: 0,
+        handle: core::ptr::null_mut()
+    };
 
-    INIT.call_once(|| {
-        REF_COUNT = Box::into_raw(Box::new(Mutex::new(0)));
-    });
+    struct DbgHelp {
+        ref_count: usize,
+        handle: winapi::um::winnt::HANDLE,
+        opts: winapi::shared::minwindef::DWORD,
+    }
 
-    // Not sure why these are missing in winapi
-    const SYMOPT_DEFERRED_LOADS: minwindef::DWORD = 0x00000004;
-    extern "system" {
-        fn SymGetOptions() -> minwindef::DWORD;
-        fn SymSetOptions(options: minwindef::DWORD);
+    pub struct Cleanup(PhantomData<*mut ()>);
+
+    impl Clone for Cleanup {
+        fn clone(&self) -> Cleanup {
+            unsafe {
+                DBGHELP.ref_count += 1;
+            }
+            Cleanup(PhantomData)
+        }
     }
 
     impl Drop for Cleanup {
         fn drop(&mut self) {
             unsafe {
-                let mut ref_count_guard = (&*REF_COUNT).lock().unwrap();
-                *ref_count_guard -= 1;
-
-                if *ref_count_guard == 0 {
-                    dbghelp::SymCleanup(self.handle);
-                    SymSetOptions(self.opts);
+                DBGHELP.ref_count -= 1;
+                if DBGHELP.ref_count == 0 {
+                    SymCleanup(DBGHELP.handle);
+                    SymSetOptions(DBGHELP.opts);
                 }
             }
         }
     }
 
-    impl Clone for Cleanup {
-        fn clone(&self) -> Cleanup {
-            unsafe {
-                let mut ref_count_guard = (&*REF_COUNT).lock().unwrap();
-                *ref_count_guard += 1;
-            }
-            Cleanup {
-                opts: self.opts,
-                handle: self.handle
-            }
+    /// Tracks whether or not we have initialized dbghelp.dll inside of a call to `trace`.
+    pub enum Trace {
+        Inside(Option<Cleanup>),
+        Outside,
+    }
+
+    thread_local! {
+        pub static TRACE_CLEANUP: core::cell::RefCell<Trace> = core::cell::RefCell::new(Trace::Outside);
+    }
+
+    /// Requires external synchronization
+    pub unsafe fn init() -> Option<Cleanup> {
+        use winapi::shared::minwindef::TRUE;
+        use winapi::um::processthreadsapi::GetCurrentProcess;
+
+        if DBGHELP.ref_count > 0 {
+            DBGHELP.ref_count += 1;
+            return Some(Cleanup(core::marker::PhantomData));
+        }
+
+        let opts = SymGetOptions();
+        let handle = GetCurrentProcess();
+
+        SymSetOptions(opts | SYMOPT_DEFERRED_LOADS);
+
+        let ret = SymInitializeW(handle,  0 as *mut _,TRUE);
+        if ret != TRUE {
+            // Revert our changes
+            SymSetOptions(opts);
+
+            // Symbols may have been initialized by another library or an external debugger
+            None
+        } else {
+            DBGHELP.ref_count += 1;
+            DBGHELP.handle = handle;
+            DBGHELP.opts = opts;
+            Some(Cleanup(PhantomData))
         }
     }
-
-    let opts = SymGetOptions();
-    let handle = processthreadsapi::GetCurrentProcess();
-
-    let mut ref_count_guard = (&*REF_COUNT).lock().unwrap();
-
-    if *ref_count_guard > 0 {
-        *ref_count_guard += 1;
-        return Some(Cleanup { handle, opts });
-    }
-
-    SymSetOptions(opts | SYMOPT_DEFERRED_LOADS);
-
-    let ret = dbghelp::SymInitializeW(handle,
-                                      0 as *mut _,
-                                      minwindef::TRUE);
-
-    if ret != minwindef::TRUE {
-        // Symbols may have been initialized by another library or an external debugger
-        None
-    } else {
-        *ref_count_guard += 1;
-        Some(Cleanup { handle, opts })
-    }
 }
+
+#[cfg(all(windows, feature = "dbghelp"))]
+use dbghelp::init as dbghelp_init;
+
+#[cfg(all(windows, feature = "dbghelp"))]
+use dbghelp::{Trace, TRACE_CLEANUP};

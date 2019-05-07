@@ -62,7 +62,7 @@ pub unsafe fn trace(cb: &mut FnMut(&super::Frame) -> bool) {
     };
     let image = init_frame(&mut frame.inner.inner, &context.0);
 
-    let cleanup_on_drop = CleanupOnDrop;
+    let _cleanup_on_drop = CleanupOnDrop;
 
     ::TRACE_CLEANUP.with(|trace_cleanup| {
         let mut trace_cleanup = trace_cleanup.borrow_mut();
@@ -120,8 +120,6 @@ pub unsafe fn trace(cb: &mut FnMut(&super::Frame) -> bool) {
                 break
             }
         }
-
-        drop(cleanup_on_drop);
     }
 }
 

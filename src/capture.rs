@@ -68,6 +68,8 @@ impl Backtrace {
     /// ```
     #[inline(never)] // want to make sure there's a frame here to remove
     pub fn new() -> Backtrace {
+        let _lock = ::lock::lock();
+
         // initialize dbghelp only once for both the trace and the resolve
         #[cfg(all(windows, feature = "dbghelp"))]
         let _c = unsafe { ::dbghelp_init() };
@@ -145,6 +147,8 @@ impl Backtrace {
     /// If this backtrace has been previously resolved or was created through
     /// `new`, this function does nothing.
     pub fn resolve(&mut self) {
+        let _lock = ::lock::lock();
+
         // initialize dbghelp only once for all frames
         #[cfg(all(windows, feature = "dbghelp"))]
         let _c = unsafe { ::dbghelp_init() };
