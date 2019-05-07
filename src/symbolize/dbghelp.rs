@@ -88,6 +88,7 @@ pub unsafe fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
 
     let _c = ::dbghelp_init();
 
+    #[cfg(feature = "std")]
     ::TRACE_CLEANUP.with(|trace_cleanup| {
         use ::Trace;
         let mut trace_cleanup = trace_cleanup.borrow_mut();

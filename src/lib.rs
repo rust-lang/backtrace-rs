@@ -237,11 +237,13 @@ mod dbghelp {
     }
 
     /// Tracks whether or not we have initialized dbghelp.dll inside of a call to `trace`.
+    #[cfg(feature = "std")]
     pub enum Trace {
         Inside(Option<Cleanup>),
         Outside,
     }
 
+    #[cfg(feature = "std")]
     thread_local! {
         pub static TRACE_CLEANUP: core::cell::RefCell<Trace> = core::cell::RefCell::new(Trace::Outside);
     }
@@ -280,5 +282,5 @@ mod dbghelp {
 #[cfg(all(windows, feature = "dbghelp"))]
 use dbghelp::init as dbghelp_init;
 
-#[cfg(all(windows, feature = "dbghelp"))]
+#[cfg(all(windows, feature = "dbghelp", feature = "std"))]
 use dbghelp::{Trace, TRACE_CLEANUP};

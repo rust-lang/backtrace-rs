@@ -42,6 +42,7 @@ struct CleanupOnDrop;
 
 impl Drop for CleanupOnDrop {
     fn drop(&mut self) {
+        #[cfg(feature = "std")]
         ::TRACE_CLEANUP.with(|trace_cleanup| {
             let mut trace_cleanup = trace_cleanup.borrow_mut();
             *trace_cleanup = ::Trace::Outside;
@@ -64,23 +65,23 @@ pub unsafe fn trace(cb: &mut FnMut(&super::Frame) -> bool) {
 
     let _cleanup_on_drop = CleanupOnDrop;
 
+    #[cfg(feature = "std")]
     ::TRACE_CLEANUP.with(|trace_cleanup| {
         let mut trace_cleanup = trace_cleanup.borrow_mut();
         *trace_cleanup = ::Trace::Inside(None);
     });
 
     if cfg!(feature = "kernel32") {
-        let frames_to_capture = 62;
+        const FRAMES_TO_CAPTURE: u32 = 62;
         let mut frames_to_skip = 0;
-        let mut backtrace = vec![0_usize; frames_to_capture as usize];
-        let mut backtrace_hash = 0;
+        let mut backtrace = [0_usize; FRAMES_TO_CAPTURE as usize];
 
         loop {
             let num_captured_frames = winapi::um::winnt::RtlCaptureStackBackTrace(
                 frames_to_skip,
-                frames_to_capture,
+                FRAMES_TO_CAPTURE,
                 backtrace.as_mut_ptr() as _,
-                &mut backtrace_hash
+                0 as *mut _,
             );
 
             for i in 0..num_captured_frames as u32 {
