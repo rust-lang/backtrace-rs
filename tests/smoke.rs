@@ -42,7 +42,10 @@ fn smoke_test_frames() {
         // On 32-bit windows apparently the first frame isn't our backtrace
         // frame but it's actually this frame. I'm not entirely sure why, but at
         // least it seems consistent?
-        let o = if cfg!(all(windows, target_pointer_width = "32")) {1} else {0};
+        let is_win32 = cfg!(all(windows, target_pointer_width = "32"));
+        let use_rtl_capture_backtrace = cfg!(feature = "kernel32");
+        let o = if is_win32 && !use_rtl_capture_backtrace {1} else {0};
+
         // frame offset 0 is the `backtrace::trace` function, but that's generic
         assert_frame(&v, o, 1, frame_4 as usize, "frame_4",
                      "tests/smoke.rs", start_line + 6);
