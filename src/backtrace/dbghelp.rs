@@ -126,5 +126,5 @@ fn init_frame(frame: &mut STACKFRAME64, ctx: &CONTEXT) -> WORD {
         frame.AddrFrame.Offset = ctx.R11 as u64;
     }
     frame.AddrFrame.Mode = AddrModeFlat;
-    IMAGE_FILE_MACHINE_ARM
+    IMAGE_FILE_MACHINE_ARMNT
 }

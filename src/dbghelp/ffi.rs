@@ -281,7 +281,7 @@ ffi! {
     pub const IMAGE_FILE_MACHINE_ARM64: u16 = 43620;
     pub const IMAGE_FILE_MACHINE_AMD64: u16 = 34404;
     pub const IMAGE_FILE_MACHINE_I386: u16 = 332;
-    pub const IMAGE_FILE_MACHINE_ARM: u16 = 448;
+    pub const IMAGE_FILE_MACHINE_ARMNT: u16 = 452;
 
     pub type DWORD = u32;
     pub type PDWORD = *mut u32;
@@ -512,7 +512,7 @@ ffi! {
     //     D D_mut: [ULONGLONG; 32],
     //     S S_mut: [DWORD; 32],
     // }
-    
+
     pub const ARM_MAX_BREAKPOINTS: usize = 8;
     pub const ARM_MAX_WATCHPOINTS: usize = 1;
     
