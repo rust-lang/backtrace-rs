@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! backtrace = "0.2"
+//! backtrace = "0.3"
 //! ```
 //!
 //! Next:
@@ -74,11 +74,12 @@
 #![cfg_attr(target_env = "sgx", feature(sgx_platform))]
 
 #[cfg(feature = "std")]
-#[macro_use] extern crate std;
+#[macro_use]
+extern crate std;
 
 #[cfg(any(unix, target_env = "sgx"))]
 extern crate libc;
-#[cfg(windows)]
+#[cfg(all(windows, feature = "verify-winapi"))]
 extern crate winapi;
 
 #[cfg(feature = "serde_derive")]
@@ -100,9 +101,7 @@ cfg_if! {
     if #[cfg(all(feature = "gimli-symbolize", unix, target_os = "linux"))] {
         extern crate addr2line;
         extern crate findshlibs;
-        extern crate gimli;
         extern crate memmap;
-        extern crate object;
     }
 }
 
@@ -146,11 +145,11 @@ impl Drop for Bomb {
 #[allow(dead_code)]
 #[cfg(feature = "std")]
 mod lock {
-    use std::cell::Cell;
     use std::boxed::Box;
-    use std::sync::{Once, Mutex, MutexGuard, ONCE_INIT};
+    use std::cell::Cell;
+    use std::sync::{Mutex, MutexGuard, Once, ONCE_INIT};
 
-    pub struct LockGuard(MutexGuard<'static, ()>);
+    pub struct LockGuard(Option<MutexGuard<'static, ()>>);
 
     static mut LOCK: *mut Mutex<()> = 0 as *mut _;
     static INIT: Once = ONCE_INIT;
@@ -158,39 +157,28 @@ mod lock {
 
     impl Drop for LockGuard {
         fn drop(&mut self) {
-            LOCK_HELD.with(|slot| {
-                assert!(slot.get());
-                slot.set(false);
-            });
+            if self.0.is_some() {
+                LOCK_HELD.with(|slot| {
+                    assert!(slot.get());
+                    slot.set(false);
+                });
+            }
         }
     }
 
-    pub fn lock() -> Option<LockGuard> {
+    pub fn lock() -> LockGuard {
         if LOCK_HELD.with(|l| l.get()) {
-            return None
+            return LockGuard(None);
         }
         LOCK_HELD.with(|s| s.set(true));
         unsafe {
             INIT.call_once(|| {
                 LOCK = Box::into_raw(Box::new(Mutex::new(())));
             });
-            Some(LockGuard((*LOCK).lock().unwrap()))
+            LockGuard(Some((*LOCK).lock().unwrap()))
         }
     }
 }
 
-// requires external synchronization
 #[cfg(all(windows, feature = "dbghelp"))]
-unsafe fn dbghelp_init() {
-    use winapi::shared::minwindef;
-    use winapi::um::{dbghelp, processthreadsapi};
-
-    static mut INITIALIZED: bool = false;
-
-    if !INITIALIZED {
-        dbghelp::SymInitializeW(processthreadsapi::GetCurrentProcess(),
-                                0 as *mut _,
-                                minwindef::TRUE);
-        INITIALIZED = true;
-    }
-}
+mod dbghelp;
