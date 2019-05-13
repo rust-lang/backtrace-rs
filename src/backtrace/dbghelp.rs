@@ -87,7 +87,7 @@ fn init_frame(frame: &mut STACKFRAME64, ctx: &CONTEXT) -> WORD {
     winnt::IMAGE_FILE_MACHINE_AMD64
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "arm"))]
+#[cfg(target_arch = "x86")]
 fn init_frame(frame: &mut STACKFRAME64, ctx: &CONTEXT) -> WORD {
     frame.AddrPC.Offset = ctx.Eip as u64;
     frame.AddrPC.Mode = AddrModeFlat;
@@ -109,4 +109,18 @@ fn init_frame(frame: &mut STACKFRAME64, ctx: &CONTEXT) -> WORD {
     }
     frame.AddrFrame.Mode = AddrModeFlat;
     winnt::IMAGE_FILE_MACHINE_ARM64
+}
+
+#[cfg(target_arch = "arm")]
+fn init_frame(frame: &mut STACKFRAME64, ctx: &CONTEXT) -> WORD {
+    frame.AddrPC.Offset = ctx.Pc as u64;
+    frame.AddrPC.Mode = AddrModeFlat;
+    frame.AddrStack.Offset = ctx.Sp as u64;
+    frame.AddrStack.Mode = AddrModeFlat;
+    // FIX ME: identify the register for AddrFrame.Offset for ARM32
+    // unsafe {
+    //     frame.AddrFrame.Offset = ctx.u.s().Fp as u64;
+    // }
+    frame.AddrFrame.Mode = AddrModeFlat;
+    winnt::IMAGE_FILE_MACHINE_ARM
 }
