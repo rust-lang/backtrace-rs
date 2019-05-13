@@ -281,6 +281,7 @@ ffi! {
     pub const IMAGE_FILE_MACHINE_ARM64: u16 = 43620;
     pub const IMAGE_FILE_MACHINE_AMD64: u16 = 34404;
     pub const IMAGE_FILE_MACHINE_I386: u16 = 332;
+    pub const IMAGE_FILE_MACHINE_ARM: u16 = 448;
 
     pub type DWORD = u32;
     pub type PDWORD = *mut u32;
@@ -494,6 +495,57 @@ ffi! {
         pub High: i64,
     }
 }
+
+#[cfg(target_arch = "arm")]
+ffi! {
+    // #[repr(C, align(16))]
+    // pub struct NEON128 {
+    //     Low: ULONGLONG,
+    //     High: LONGLONG,
+    // }
+    // pub type PNEON128 = *mut NEON128;
+    
+    // #[repr(C, align(16))]
+    // pub union CONTEXT_u {
+    //     [u64; 32],
+    //     Q Q_mut: [NEON128; 16],
+    //     D D_mut: [ULONGLONG; 32],
+    //     S S_mut: [DWORD; 32],
+    // }
+    
+    pub const ARM_MAX_BREAKPOINTS: usize = 8;
+    pub const ARM_MAX_WATCHPOINTS: usize = 1;
+    
+    #[repr(C, align(16))]
+    pub struct CONTEXT {
+        pub ContextFlags: DWORD,
+        pub R0: DWORD,
+        pub R1: DWORD,
+        pub R2: DWORD,
+        pub R3: DWORD,
+        pub R4: DWORD,
+        pub R5: DWORD,
+        pub R6: DWORD,
+        pub R7: DWORD,
+        pub R8: DWORD,
+        pub R9: DWORD,
+        pub R10: DWORD,
+        pub R11: DWORD,
+        pub R12: DWORD,
+        pub Sp: DWORD,
+        pub Lr: DWORD,
+        pub Pc: DWORD,
+        pub Cpsr: DWORD,
+        pub Fpsrc: DWORD,
+        pub Padding: DWORD,
+        // u: CONTEXT_u,
+        pub Bvr: [DWORD; ARM_MAX_BREAKPOINTS],
+        pub Bcr: [DWORD; ARM_MAX_BREAKPOINTS],
+        pub Wvr: [DWORD; ARM_MAX_WATCHPOINTS],
+        pub Wcr: [DWORD; ARM_MAX_WATCHPOINTS],
+        pub Padding2: [DWORD; 2],
+    }
+} // IFDEF(arm)
 
 #[repr(C)]
 #[cfg(target_arch = "x86_64")]
