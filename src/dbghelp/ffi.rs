@@ -98,6 +98,12 @@ macro_rules! ffi {
         assert_same(a, b);
         assert_eq!(a as *const $ty, b as *const $ty, "misplaced field s");
     });
+    (@test_fields $a:ident $b:ident u $ty:ty) => ({
+        let a = &$a.u;
+        let b = $b.u();
+        assert_same(a, b);
+        assert_eq!(a as *const $ty, b as *const $ty, "misplaced field s");
+    });
 
     // Otherwise test all fields normally.
     (@test_fields $a:ident $b:ident $field:ident $ty:ty) => ({
@@ -496,27 +502,33 @@ ffi! {
     }
 }
 
+#[repr(C)]
+#[cfg(target_arch = "x86_64")]
+pub struct FLOATING_SAVE_AREA {
+    _Dummy: [u8; 512],
+}
+
 #[cfg(target_arch = "arm")]
 ffi! {
-    // #[repr(C, align(16))]
+    // #[repr(C)]
     // pub struct NEON128 {
-    //     Low: ULONGLONG,
-    //     High: LONGLONG,
+    //     pub Low: ULONG64,
+    //     pub High: LONG64,
     // }
-    // pub type PNEON128 = *mut NEON128;
-    
-    // #[repr(C, align(16))]
-    // pub union CONTEXT_u {
-    //     [u64; 32],
-    //     Q Q_mut: [NEON128; 16],
-    //     D D_mut: [ULONGLONG; 32],
-    //     S S_mut: [DWORD; 32],
-    // }
+
+    // pub type PNEON128 = *mut NEON128;    
+
+    #[repr(C)]
+    pub struct CONTEXT_u {
+        // pub Q: [NEON128; 16],
+        pub D: [ULONG64; 32],
+        // pub S: [DWORD; 32],
+    }
 
     pub const ARM_MAX_BREAKPOINTS: usize = 8;
     pub const ARM_MAX_WATCHPOINTS: usize = 1;
     
-    #[repr(C, align(16))]
+    #[repr(C)]
     pub struct CONTEXT {
         pub ContextFlags: DWORD,
         pub R0: DWORD,
@@ -538,7 +550,7 @@ ffi! {
         pub Cpsr: DWORD,
         pub Fpsrc: DWORD,
         pub Padding: DWORD,
-        // u: CONTEXT_u,
+        pub u: CONTEXT_u,
         pub Bvr: [DWORD; ARM_MAX_BREAKPOINTS],
         pub Bcr: [DWORD; ARM_MAX_BREAKPOINTS],
         pub Wvr: [DWORD; ARM_MAX_WATCHPOINTS],
@@ -546,9 +558,3 @@ ffi! {
         pub Padding2: [DWORD; 2],
     }
 } // IFDEF(arm)
-
-#[repr(C)]
-#[cfg(target_arch = "x86_64")]
-pub struct FLOATING_SAVE_AREA {
-    _Dummy: [u8; 512],
-}
