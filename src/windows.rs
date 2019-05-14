@@ -105,12 +105,6 @@ macro_rules! ffi {
         assert_same(a, b);
         assert_eq!(a as *const $ty, b as *const $ty, "misplaced field s");
     });
-    (@test_fields $a:ident $b:ident u $ty:ty) => ({
-        let a = &$a.u;
-        let b = $b.u();
-        assert_same(a, b);
-        assert_eq!(a as *const $ty, b as *const $ty, "misplaced field s");
-    });
 
     // Otherwise test all fields normally.
     (@test_fields $a:ident $b:ident $field:ident $ty:ty) => ({
