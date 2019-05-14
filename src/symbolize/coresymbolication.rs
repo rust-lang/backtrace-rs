@@ -13,6 +13,7 @@
 use core::mem;
 use core::ptr;
 use core::slice;
+#[allow(deprecated)] // atomic initializer is relative new currently
 use core::sync::atomic::ATOMIC_USIZE_INIT;
 
 use libc::{self, Dl_info, c_char, c_int};
@@ -21,6 +22,7 @@ use SymbolName;
 use dylib::Dylib;
 use dylib::Symbol as DylibSymbol;
 use types::{BytesOrWideString, c_void};
+use symbolize::ResolveWhat;
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq)]
@@ -68,20 +70,33 @@ impl Symbol {
         }
     }
 
-    pub fn filename_raw(&self) -> Option<BytesOrWideString> {
+    fn filename_bytes(&self) -> Option<&[u8]> {
         match *self {
             Symbol::Core { path, .. } => {
                 if path.is_null() {
                     None
                 } else {
-                    Some(BytesOrWideString::Bytes(unsafe {
+                    Some(unsafe {
                         let len = libc::strlen(path);
                         slice::from_raw_parts(path as *const u8, len)
-                    }))
+                    })
                 }
             }
             Symbol::Dladdr(_) => None,
         }
+    }
+
+    pub fn filename_raw(&self) -> Option<BytesOrWideString> {
+        self.filename_bytes().map(BytesOrWideString::Bytes)
+    }
+
+    #[cfg(feature = "std")]
+    pub fn filename(&self) -> Option<&::std::path::Path> {
+        use std::os::unix::prelude::*;
+        use std::path::Path;
+        use std::ffi::OsStr;
+
+        self.filename_bytes().map(OsStr::from_bytes).map(Path::new)
     }
 
     pub fn lineno(&self) -> Option<u32> {
@@ -93,12 +108,14 @@ impl Symbol {
     }
 }
 
+#[allow(deprecated)] // atomic initializer is relative new currently
 static CORESYMBOLICATION: Dylib = Dylib { init: ATOMIC_USIZE_INIT };
 
 macro_rules! dlsym {
     (extern {
         $(fn $name:ident($($arg:ident: $t:ty),*) -> $ret:ty;)*
     }) => ($(
+        #[allow(deprecated)] // atomic initializer is relative new currently
         static $name: ::dylib::Symbol<unsafe extern fn($($t),*) -> $ret> =
             ::dylib::Symbol {
                 name: concat!(stringify!($name), "\0"),
@@ -177,7 +194,8 @@ unsafe fn try_resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) -> bool
     rv
 }
 
-pub unsafe fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
+pub unsafe fn resolve(what: ResolveWhat, cb: &mut FnMut(&super::Symbol)) {
+    let addr = what.address_or_ip();
     if try_resolve(addr, cb) {
         return
     }

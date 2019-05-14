@@ -12,6 +12,7 @@ use core::{mem, slice};
 
 use types::{BytesOrWideString, c_void};
 use libc::{self, Dl_info};
+use symbolize::ResolveWhat;
 
 use SymbolName;
 
@@ -40,12 +41,18 @@ impl Symbol {
         None
     }
 
+    #[cfg(feature = "std")]
+    pub fn filename(&self) -> Option<&::std::path::Path> {
+        None
+    }
+
     pub fn lineno(&self) -> Option<u32> {
         None
     }
 }
 
-pub unsafe fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
+pub unsafe fn resolve(what: ResolveWhat, cb: &mut FnMut(&super::Symbol)) {
+    let addr = what.address_or_ip();
     let mut info: super::Symbol = super::Symbol {
         inner: Symbol {
             inner: mem::zeroed(),

@@ -1,18 +1,19 @@
 use addr2line;
 use addr2line::object::{self, Object};
 use findshlibs::{self, Segment, SharedLibrary};
+use libc::c_void;
 use memmap::Mmap;
 use std::cell::RefCell;
 use std::env;
 use std::fs::File;
 use std::mem;
-use libc::c_void;
-use std::path::PathBuf;
-use std::u32;
+use std::path::{Path, PathBuf};
 use std::prelude::v1::*;
+use std::u32;
 
-use SymbolName;
+use symbolize::ResolveWhat;
 use types::BytesOrWideString;
+use SymbolName;
 
 const MAPPINGS_CACHE_SIZE: usize = 4;
 
@@ -107,7 +108,9 @@ where
     });
 }
 
-pub fn resolve(addr: *mut c_void, cb: &mut FnMut(&super::Symbol)) {
+pub fn resolve(what: ResolveWhat, cb: &mut FnMut(&super::Symbol)) {
+    let addr = what.address_or_ip();
+
     // First, find the file containing the segment that the given AVMA (after
     // relocation) address falls within. Use the containing segment to compute
     // the SVMA (before relocation) address.
@@ -189,11 +192,7 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    fn new(addr: usize,
-           file: Option<String>,
-           line: Option<u64>,
-           name: Option<String>)
-           -> Symbol {
+    fn new(addr: usize, file: Option<String>, line: Option<u64>, name: Option<String>) -> Symbol {
         Symbol {
             addr,
             file,
@@ -211,15 +210,22 @@ impl Symbol {
     }
 
     pub fn filename_raw(&self) -> Option<BytesOrWideString> {
-        self.file.as_ref().map(|f| BytesOrWideString::Bytes(f.as_bytes()))
+        self.file
+            .as_ref()
+            .map(|f| BytesOrWideString::Bytes(f.as_bytes()))
+    }
+
+    pub fn filename(&self) -> Option<&Path> {
+        self.file.as_ref().map(Path::new)
     }
 
     pub fn lineno(&self) -> Option<u32> {
-        self.line
-            .and_then(|l| if l > (u32::MAX as u64) {
+        self.line.and_then(|l| {
+            if l > (u32::MAX as u64) {
                 None
             } else {
                 Some(l as u32)
-            })
+            }
+        })
     }
 }

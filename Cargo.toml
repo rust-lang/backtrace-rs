@@ -17,6 +17,7 @@ autotests = true
 [dependencies]
 cfg-if = "0.1.6"
 rustc-demangle = "0.1.4"
+backtrace-sys = { path = "backtrace-sys", version = "0.1.17", optional = true }
 
 # Optionally enable the ability to serialize a `Backtrace`
 serde = { version = "1.0", optional = true }
@@ -36,9 +37,6 @@ libc = { version = "0.2.45", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.3", optional = true }
-
-[target.'cfg(all(unix, not(target_os = "fuchsia"), not(target_os = "emscripten"), not(target_os = "macos"), not(target_os = "ios")))'.dependencies]
-backtrace-sys = { path = "backtrace-sys", version = "0.1.17", optional = true }
 
 [build-dependencies]
 autocfg = "0.1"
@@ -94,7 +92,7 @@ kernel32 = []
 #   the moment, this is only possible when targetting Linux, since macOS
 #   splits DWARF out into a separate object file. Enabling this feature
 #   means one less C dependency.
-libbacktrace = ["backtrace-sys", "std"]
+libbacktrace = ["backtrace-sys"]
 dladdr = []
 coresymbolication = []
 gimli-symbolize = ["addr2line", "findshlibs", "memmap" ]
@@ -134,3 +132,4 @@ required-features = ["std"]
 [[test]]
 name = "smoke"
 required-features = ["std"]
+edition = '2018'
