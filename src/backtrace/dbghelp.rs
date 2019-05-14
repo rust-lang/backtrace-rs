@@ -183,14 +183,14 @@ fn init_frame(frame: &mut Frame, ctx: &CONTEXT) -> WORD {
 }
 
 #[cfg(target_arch = "arm")]
-fn init_frame(frame: &mut STACKFRAME64, ctx: &CONTEXT) -> WORD {
-    frame.AddrPC.Offset = ctx.Pc as u64;
-    frame.AddrPC.Mode = AddrModeFlat;
-    frame.AddrStack.Offset = ctx.Sp as u64;
-    frame.AddrStack.Mode = AddrModeFlat;
+fn init_frame(frame: &mut Frame, ctx: &CONTEXT) -> WORD {
+    frame.addr_pc_mut().Offset = ctx.Pc as u64;
+    frame.addr_pc_mut().Mode = AddrModeFlat;
+    frame.addr_stack_mut().Offset = ctx.Sp as u64;
+    frame.addr_stack_mut().Mode = AddrModeFlat;
     unsafe {
-        frame.AddrFrame.Offset = ctx.R11 as u64;
+        frame.addr_frame_mut().Offset = ctx.R11 as u64;
     }
-    frame.AddrFrame.Mode = AddrModeFlat;
+    frame.addr_frame_mut().Mode = AddrModeFlat;
     IMAGE_FILE_MACHINE_ARMNT
 }
