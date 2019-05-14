@@ -14,20 +14,26 @@ cfg_if! {
         pub use self::winapi::c_void;
         pub use self::winapi::HINSTANCE;
         pub use self::winapi::FARPROC;
+        pub use self::winapi::LPSECURITY_ATTRIBUTES;
 
         mod winapi {
             pub use winapi::ctypes::*;
             pub use winapi::shared::basetsd::*;
             pub use winapi::shared::minwindef::*;
             pub use winapi::um::dbghelp::*;
-            pub use winapi::um::winnt::*;
+            pub use winapi::um::handleapi::*;
             pub use winapi::um::libloaderapi::*;
             pub use winapi::um::processthreadsapi::*;
+            pub use winapi::um::winbase::*;
+            pub use winapi::um::winnt::*;
+            pub use winapi::um::fileapi::*;
+            pub use winapi::um::minwinbase::*;
         }
     } else {
         pub use core::ffi::c_void;
         pub type HINSTANCE = *mut c_void;
         pub type FARPROC = *mut c_void;
+        pub type LPSECURITY_ATTRIBUTES = *mut c_void;
     }
 }
 
@@ -304,10 +310,16 @@ ffi! {
     pub const MAX_SYM_NAME: usize = 2000;
     pub const AddrModeFlat: ADDRESS_MODE = 3;
     pub const TRUE: BOOL = 1;
+    pub const FALSE: BOOL = 0;
+    pub const PROCESS_QUERY_INFORMATION: DWORD = 0x400;
     pub const IMAGE_FILE_MACHINE_ARM64: u16 = 43620;
     pub const IMAGE_FILE_MACHINE_AMD64: u16 = 34404;
     pub const IMAGE_FILE_MACHINE_I386: u16 = 332;
     pub const IMAGE_FILE_MACHINE_ARMNT: u16 = 452;
+    pub const FILE_SHARE_READ: DWORD = 0x1;
+    pub const FILE_SHARE_WRITE: DWORD = 0x2;
+    pub const OPEN_EXISTING: DWORD = 0x3;
+    pub const GENERIC_READ: DWORD = 0x80000000;
 
     pub type DWORD = u32;
     pub type PDWORD = *mut u32;
@@ -317,6 +329,8 @@ ffi! {
     pub type HANDLE = *mut c_void;
     pub type PVOID = HANDLE;
     pub type PCWSTR = *const u16;
+    pub type LPSTR = *mut i8;
+    pub type LPCSTR = *const i8;
     pub type PWSTR = *mut u16;
     pub type WORD = u16;
     pub type ULONG = u32;
@@ -334,6 +348,28 @@ ffi! {
         pub fn LoadLibraryW(a: *const u16) -> HMODULE;
         pub fn FreeLibrary(h: HMODULE) -> BOOL;
         pub fn GetProcAddress(h: HMODULE, name: *const i8) -> FARPROC;
+        pub fn OpenProcess(
+            dwDesiredAccess: DWORD,
+            bInheitHandle: BOOL,
+            dwProcessId: DWORD,
+        ) -> HANDLE;
+        pub fn GetCurrentProcessId() -> DWORD;
+        pub fn CloseHandle(h: HANDLE) -> BOOL;
+        pub fn QueryFullProcessImageNameA(
+            hProcess: HANDLE,
+            dwFlags: DWORD,
+            lpExeName: LPSTR,
+            lpdwSize: PDWORD,
+        ) -> BOOL;
+        pub fn CreateFileA(
+            lpFileName: LPCSTR,
+            dwDesiredAccess: DWORD,
+            dwShareMode: DWORD,
+            lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
+            dwCreationDisposition: DWORD,
+            dwFlagsAndAttributes: DWORD,
+            hTemplateFile: HANDLE,
+        ) -> HANDLE;
     }
 }
 
