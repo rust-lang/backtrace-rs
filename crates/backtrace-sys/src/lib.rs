@@ -1,6 +1,7 @@
 #![allow(bad_style)]
 #![no_std]
 
+#[allow(unused_extern_crates)]
 extern crate libc;
 
 #[cfg(not(empty))]

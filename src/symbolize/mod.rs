@@ -462,6 +462,7 @@ cfg_if::cfg_if! {
         mod dbghelp;
         use self::dbghelp::resolve as resolve_imp;
         use self::dbghelp::Symbol as SymbolImp;
+        #[cfg(feature = "std")]
         unsafe fn clear_symbol_cache_imp() {}
     } else if #[cfg(all(
         feature = "std",
@@ -475,6 +476,7 @@ cfg_if::cfg_if! {
         mod gimli;
         use self::gimli::resolve as resolve_imp;
         use self::gimli::Symbol as SymbolImp;
+        #[cfg(feature = "std")]
         use self::gimli::clear_symbol_cache as clear_symbol_cache_imp;
     // Note that we only enable coresymbolication on iOS when debug assertions
     // are enabled because it's helpful in debug mode but it looks like apps get
@@ -485,6 +487,7 @@ cfg_if::cfg_if! {
         mod coresymbolication;
         use self::coresymbolication::resolve as resolve_imp;
         use self::coresymbolication::Symbol as SymbolImp;
+        #[cfg(feature = "std")]
         unsafe fn clear_symbol_cache_imp() {}
     } else if #[cfg(all(feature = "libbacktrace",
                         any(unix, all(windows, not(target_vendor = "uwp"), target_env = "gnu")),
@@ -493,6 +496,7 @@ cfg_if::cfg_if! {
         mod libbacktrace;
         use self::libbacktrace::resolve as resolve_imp;
         use self::libbacktrace::Symbol as SymbolImp;
+        #[cfg(feature = "std")]
         unsafe fn clear_symbol_cache_imp() {}
     } else if #[cfg(all(unix,
                         not(target_os = "emscripten"),
@@ -500,11 +504,13 @@ cfg_if::cfg_if! {
         mod dladdr_resolve;
         use self::dladdr_resolve::resolve as resolve_imp;
         use self::dladdr_resolve::Symbol as SymbolImp;
+        #[cfg(feature = "std")]
         unsafe fn clear_symbol_cache_imp() {}
     } else {
         mod noop;
         use self::noop::resolve as resolve_imp;
         use self::noop::Symbol as SymbolImp;
+        #[cfg(feature = "std")]
         unsafe fn clear_symbol_cache_imp() {}
     }
 }
