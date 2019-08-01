@@ -458,7 +458,7 @@ pub fn clear_symbol_cache() {
 mod dladdr;
 
 cfg_if::cfg_if! {
-    if #[cfg(all(windows, target_env = "msvc", feature = "dbghelp"))] {
+    if #[cfg(all(windows, target_env = "msvc", not(target_vendor = "uwp"), feature = "dbghelp"))] {
         mod dbghelp;
         use self::dbghelp::resolve as resolve_imp;
         use self::dbghelp::Symbol as SymbolImp;
