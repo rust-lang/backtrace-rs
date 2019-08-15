@@ -253,12 +253,24 @@ pub struct Init;
 /// lock.
 #[cfg(all(windows, feature = "dbghelp"))]
 pub unsafe fn init() -> Result<Init, ()> {
+    // See comments below on `configure_synchronize_std_panic_hook` for why this
+    // is necessary. Also note that we want to initialize this only once, but it
+    // can fail so we try again for each time this function is called.
+    #[cfg(feature = "std")]
+    {
+        static mut HOOK_CONFIGURED: bool = false;
+        if !HOOK_CONFIGURED {
+            HOOK_CONFIGURED = configure_synchronize_std_panic_hook();
+        }
+    }
+
     // Calling `SymInitializeW` is quite expensive, so we only do so once per
     // process.
     static mut INITIALIZED: bool = false;
     if INITIALIZED {
         return Ok(Init);
     }
+
 
     // Actually load `dbghelp.dll` into the process here, returning an error if
     // that fails.
@@ -285,4 +297,86 @@ pub unsafe fn init() -> Result<Init, ()> {
     // initialization.
     DBGHELP.SymInitializeW().unwrap()(GetCurrentProcess(), ptr::null_mut(), TRUE);
     Ok(Init)
+}
+
+/// A horrible, nasty, no-good, very bad hack. Otherwise known as "a best effort
+/// attempt to make this crate threadsafe against the standard library".
+///
+/// The dbghelp functions on Windows are all required to be invoked in a
+/// single-threaded manner. They cannot be invoked concurrently in a process.
+/// Ever. This provides an interesting problem for us because the standard
+/// library is going to be generating backtraces with `RUST_BACKTRACE=1` and
+/// this crate is also generating backtraces. This means that it's not safe for
+/// this crate to race with the standard library. We, however, don't really have
+/// a great way of determining this.
+///
+/// Hence, we add in an awful approximation of this. Here we configure a panic
+/// hook which unconditionally synchronizes with this crate if we think that the
+/// standard library will be generating backtraces. Wow this is an abuse of
+/// panic hooks.
+///
+/// The intention here though is that whenever a thread panics and would
+/// otherwise generate a backtrace we are careful to synchronize with the global
+/// lock in this crate protecting the APIs of this crate. That way either this
+/// crate is generating a backtrace or a thread is panicking, but never both at
+/// the same time.
+///
+/// This strategy is horribly fraught with bugs and only fixes some of the
+/// problem, not all. In addition to all the "TODO" mentioned below this is just
+/// a downright weird strategy that's an abuse of a feature that's not supposed
+/// to be used for this purpose. A true solution would be some sort of
+/// coordination with the standard library, probably literally exposing the lock
+/// used to generate backtraces. We would then acquire that lock instead to
+/// synchronize this crate instead of having our own lock.
+///
+/// I suspect this strategy probably also has:
+///
+/// * Double-panics. God forbid if this crate itself panics.
+/// * Deadlocks. There's a lot of locks in play, are they really grabbed in the
+///   right order?
+/// * Unsafety. This doesn't solve the problem, it only papers over some cases.
+///
+/// What I can at least hopefully say is that this does indeed solve some
+/// issues. If a program isn't otherwise configuring panic hooks, isn't
+/// changing `RUST_BACKTRACE` at runtime, and isn't using unstable features of
+/// libstd, then I think that this is correct and will actually protect against
+/// segfaults on Windows.
+#[cfg(feature = "std")]
+fn configure_synchronize_std_panic_hook() -> bool {
+    use std::panic::{self, PanicInfo};
+    use std::prelude::v1::*;
+
+    // If we don't find the `RUST_BACKTRACE` environment variable let's assume
+    // that the standard library isn't generating backtraces, so we'll just skip
+    // this step.
+    //
+    // TODO: this is memory unsafe if the value of `RUST_BACKTRACE` changes at
+    // runtime.
+    if std::env::var("RUST_BACKTRACE").is_err() {
+        return true;
+    }
+
+    // If our thread is already panicking, then we would panic again by calling
+    // `take_hook` and `set_hook` below. We don't want to cause a double panic,
+    // so fail initialization and retry again later.
+    //
+    // TODO: this is memory unsafe because we're not actually synchronizing
+    // with the standard library. YOLO I guess?
+    if std::thread::panicking() {
+        return false;
+    }
+
+    // Configure a panic hook to invoke the previous hook, but in a lock. This
+    // way we're guaranteed that only one thread is accessing the backtrace lock
+    // at any one point in time.
+    //
+    // TODO: this is racy wrt take_hook/set_hook. We can't really do anything
+    // about that, this is just an awful strategy to fix this.
+    let original_hook = panic::take_hook();
+    let hook = Box::new(move |info: &PanicInfo| {
+        let _guard = crate::lock::lock();
+        original_hook(info);
+    });
+    panic::set_hook(hook);
+    return true;
 }
