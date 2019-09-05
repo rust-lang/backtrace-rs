@@ -400,8 +400,17 @@ unsafe fn init_state() -> *mut bt::backtrace_state {
                     Ok(&buf[..(len + 1) as usize])
                 }
             }
-
-
+        } else if #[cfg(target_os = "vxworks")] {
+            unsafe fn load_filename() -> *const libc::c_char {
+                use libc;
+                use core::mem;
+                let mut rtp_desc : libc::RTP_DESC = mem::zeroed();
+                if (libc::rtpInfoGet(0, &mut rtp_desc as *mut libc::RTP_DESC) == 0){
+                    rtp_desc.pathName.as_mut_ptr() as *mut libc::c_char
+                } else {
+                    ptr::null()
+                }
+            }
         } else {
             unsafe fn load_filename() -> *const libc::c_char {
                 ptr::null()
