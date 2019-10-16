@@ -1,5 +1,4 @@
-use crate::PrintFmt;
-use crate::{resolve, resolve_frame, trace, BacktraceFmt, Symbol, SymbolName};
+use crate::{resolve, resolve_frame, trace, DebugBacktraceFrame, Symbol, SymbolName};
 use std::ffi::c_void;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -322,41 +321,18 @@ impl BacktraceSymbol {
     pub fn lineno(&self) -> Option<u32> {
         self.lineno
     }
+
+    /// Returns whether the BacktraceSymbol has any data associated with it
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none() && self.addr.is_none() && self.filename.is_none() && self.lineno.is_none()
+    }
 }
 
 impl fmt::Debug for Backtrace {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let full = fmt.alternate();
-        let (frames, style) = if full {
-            (&self.frames[..], PrintFmt::Full)
-        } else {
-            (&self.frames[self.actual_start_index..], PrintFmt::Short)
-        };
-
-        // When printing paths we try to strip the cwd if it exists, otherwise
-        // we just print the path as-is. Note that we also only do this for the
-        // short format, because if it's full we presumably want to print
-        // everything.
-        let cwd = std::env::current_dir();
-        let mut print_path = move |fmt: &mut fmt::Formatter, path: crate::BytesOrWideString| {
-            let path = path.into_path_buf();
-            if !full {
-                if let Ok(cwd) = &cwd {
-                    if let Ok(suffix) = path.strip_prefix(cwd) {
-                        return fmt::Display::fmt(&suffix.display(), fmt);
-                    }
-                }
-            }
-            fmt::Display::fmt(&path.display(), fmt)
-        };
-
-        let mut f = BacktraceFmt::new(fmt, style, &mut print_path);
-        f.add_context()?;
-        for frame in frames {
-            f.frame().backtrace_frame(frame)?;
-        }
-        f.finish()?;
-        Ok(())
+        fmt.debug_list()
+            .entries(self.frames().iter().flat_map(|frame| DebugBacktraceFrame::new(frame).symbols_skip_empty()))
+            .finish()
     }
 }
 
