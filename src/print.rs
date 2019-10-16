@@ -7,6 +7,63 @@ const HEX_WIDTH: usize = 2 + 2 * core::mem::size_of::<usize>();
 #[cfg(target_os = "fuchsia")]
 mod fuchsia;
 
+/// A formatter for BacktraceFrames.
+pub struct DebugBacktraceFrame<'a>(&'a crate::BacktraceFrame);
+
+impl<'a> DebugBacktraceFrame<'a> {
+    #[allow(missing_docs)]
+    pub fn new(frame: &'a crate::BacktraceFrame) -> Self {
+        Self(frame)
+    }
+
+    /// Iterates over symbols in wrapped BacktraceFrame, and wraps them in DebugBacktraceSymbols.
+    pub fn symbols(&self) -> std::vec::Vec<DebugBacktraceSymbol<'a>> {
+        self.0.symbols().iter().map(DebugBacktraceSymbol::new).collect()
+    }
+
+    /// Same as symbols(), but filters out symbols that have no data
+    pub fn symbols_skip_empty(&self) -> std::vec::Vec<DebugBacktraceSymbol<'a>> {
+        self.0.symbols().iter().filter(|symbol| !symbol.is_empty()).map(DebugBacktraceSymbol::new).collect()        
+    }
+}
+
+impl<'a> fmt::Debug for DebugBacktraceFrame<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut d = f.debug_list();
+        if !self.0.symbols().is_empty() {
+            d.entries(self.0.symbols().iter().map(|symbol|  DebugBacktraceSymbol::new(symbol)));
+        }
+        d.finish()
+    }
+}
+
+/// A formatter for BacktraceSymbols.
+pub struct DebugBacktraceSymbol<'a>(&'a crate::BacktraceSymbol);
+
+impl<'a> DebugBacktraceSymbol<'a> {
+    /// Create a new DebugBacktraceSymbol.
+    pub fn new(frame: &'a crate::BacktraceSymbol) -> Self {
+        Self(frame)
+    }
+}
+
+impl<'a> fmt::Debug for DebugBacktraceSymbol<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.0.name().is_none() { return Ok(()); }
+        let mut d = f.debug_map();
+        let name = self.0.name();
+        let file = self.0
+            .filename()
+            .and_then(|p| Some(BytesOrWideString::Bytes(p.to_str()?.as_bytes())));
+        let line = self.0.lineno();
+
+        if let Some(ref name) = name { d.entry(&"function", name); }
+        if let Some(ref file) = file { d.entry(&"file", file); }
+        if let Some(ref line) = line { d.entry(&"line", line); }
+        d.finish()
+    }
+}
+
 /// A formatter for backtraces.
 ///
 /// This type can be used to print a backtrace regardless of where the backtrace
