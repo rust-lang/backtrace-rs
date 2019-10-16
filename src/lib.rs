@@ -90,7 +90,7 @@ mod types;
 pub use crate::symbolize::clear_symbol_cache;
 
 mod print;
-pub use print::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
+pub use print::{BacktraceFmt, BacktraceFrameFmt, DebugBacktraceFrame, PrintFmt};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
