@@ -1,4 +1,4 @@
-use crate::{resolve, resolve_frame, trace, DebugBacktraceFrame, Symbol, SymbolName};
+use crate::{resolve, resolve_frame, trace, BacktraceFmt, PrintFmt, Symbol, SymbolName};
 use std::ffi::c_void;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -330,9 +330,44 @@ impl BacktraceSymbol {
 
 impl fmt::Debug for Backtrace {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_list()
-            .entries(self.frames().iter().flat_map(|frame| DebugBacktraceFrame::new(frame).symbols_skip_empty()))
-            .finish()
+        let full = fmt.alternate();
+        let precision = fmt.precision();
+
+        let (frames, style) = if full {
+            (&self.frames[..], PrintFmt::Full)
+        } else {
+            (&self.frames[self.actual_start_index..], PrintFmt::Short)
+        };
+
+        let frames = match precision {
+            Some(precision) => &frames[..precision],
+            None => frames,
+        };
+
+        // When printing paths we try to strip the cwd if it exists, otherwise
+        // we just print the path as-is. Note that we also only do this for the
+        // short format, because if it's full we presumably want to print
+        // everything.
+        let cwd = std::env::current_dir();
+        let mut print_path = move |fmt: &mut fmt::Formatter, path: crate::BytesOrWideString| {
+            let path = path.into_path_buf();
+            if !full {
+                if let Ok(cwd) = &cwd {
+                    if let Ok(suffix) = path.strip_prefix(cwd) {
+                        return fmt::Display::fmt(&suffix.display(), fmt);
+                    }
+                }
+            }
+            fmt::Display::fmt(&path.display(), fmt)
+        };
+
+        let mut f = BacktraceFmt::new(fmt, style, &mut print_path);
+        f.add_context()?;
+        for frame in frames {
+            f.frame().backtrace_frame(frame)?;
+        }
+        f.finish()?;
+        Ok(())
     }
 }
 
