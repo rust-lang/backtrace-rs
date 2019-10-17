@@ -1,68 +1,10 @@
 use crate::BytesOrWideString;
 use core::ffi::c_void;
 use core::fmt;
-
-const HEX_WIDTH: usize = 2 + 2 * core::mem::size_of::<usize>();
+use cfg_if::cfg_if;
 
 #[cfg(target_os = "fuchsia")]
 mod fuchsia;
-
-/// A formatter for BacktraceFrames.
-pub struct DebugBacktraceFrame<'a>(&'a crate::BacktraceFrame);
-
-impl<'a> DebugBacktraceFrame<'a> {
-    #[allow(missing_docs)]
-    pub fn new(frame: &'a crate::BacktraceFrame) -> Self {
-        Self(frame)
-    }
-
-    /// Iterates over symbols in wrapped BacktraceFrame, and wraps them in DebugBacktraceSymbols.
-    pub fn symbols(&self) -> std::vec::Vec<DebugBacktraceSymbol<'a>> {
-        self.0.symbols().iter().map(DebugBacktraceSymbol::new).collect()
-    }
-
-    /// Same as symbols(), but filters out symbols that have no data
-    pub fn symbols_skip_empty(&self) -> std::vec::Vec<DebugBacktraceSymbol<'a>> {
-        self.0.symbols().iter().filter(|symbol| !symbol.is_empty()).map(DebugBacktraceSymbol::new).collect()        
-    }
-}
-
-impl<'a> fmt::Debug for DebugBacktraceFrame<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut d = f.debug_list();
-        if !self.0.symbols().is_empty() {
-            d.entries(self.0.symbols().iter().map(|symbol|  DebugBacktraceSymbol::new(symbol)));
-        }
-        d.finish()
-    }
-}
-
-/// A formatter for BacktraceSymbols.
-pub struct DebugBacktraceSymbol<'a>(&'a crate::BacktraceSymbol);
-
-impl<'a> DebugBacktraceSymbol<'a> {
-    /// Create a new DebugBacktraceSymbol.
-    pub fn new(frame: &'a crate::BacktraceSymbol) -> Self {
-        Self(frame)
-    }
-}
-
-impl<'a> fmt::Debug for DebugBacktraceSymbol<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.0.name().is_none() { return Ok(()); }
-        let mut d = f.debug_map();
-        let name = self.0.name();
-        let file = self.0
-            .filename()
-            .and_then(|p| Some(BytesOrWideString::Bytes(p.to_str()?.as_bytes())));
-        let line = self.0.lineno();
-
-        if let Some(ref name) = name { d.entry(&"function", name); }
-        if let Some(ref file) = file { d.entry(&"file", file); }
-        if let Some(ref line) = line { d.entry(&"line", line); }
-        d.finish()
-    }
-}
 
 /// A formatter for backtraces.
 ///
@@ -114,9 +56,13 @@ impl<'a, 'b> BacktraceFmt<'a, 'b> {
     /// sumbolicated later, and otherwise this should just be the first method
     /// you call after creating a `BacktraceFmt`.
     pub fn add_context(&mut self) -> fmt::Result {
-        self.fmt.write_str("stack backtrace:\n")?;
-        #[cfg(target_os = "fuchsia")]
-        fuchsia::print_dso_context(self.fmt)?;
+        cfg_if! {
+            if #[cfg(target_os = "fuchsia")] {
+                fuchsia::print_dso_context(self.fmt)?;
+            } else {
+                self.fmt.write_str("[")?;
+            }
+        }
         Ok(())
     }
 
@@ -126,18 +72,20 @@ impl<'a, 'b> BacktraceFmt<'a, 'b> {
     /// to actually print a frame, and on destruction it will increment the
     /// frame counter.
     pub fn frame(&mut self) -> BacktraceFrameFmt<'_, 'a, 'b> {
+        let is_first_frame = self.frame_index == 0;
         BacktraceFrameFmt {
             fmt: self,
+            is_first_frame,
             symbol_index: 0,
         }
     }
 
     /// Completes the backtrace output.
-    ///
-    /// This is currently a no-op but is added for future compatibility with
-    /// backtrace formats.
+    /// 
+    /// If not running on fuchsia, then close the list, otherwise this is a no-op.
     pub fn finish(&mut self) -> fmt::Result {
-        // Currently a no-op-- including this hook to allow for future additions.
+        #[cfg(not(target_os = "fuchsia"))]
+        self.fmt.write_str("]")?;
         Ok(())
     }
 }
@@ -147,6 +95,7 @@ impl<'a, 'b> BacktraceFmt<'a, 'b> {
 /// This type is created by the `BacktraceFmt::frame` function.
 pub struct BacktraceFrameFmt<'fmt, 'a, 'b> {
     fmt: &'fmt mut BacktraceFmt<'a, 'b>,
+    is_first_frame: bool,
     symbol_index: usize,
 }
 
@@ -259,51 +208,38 @@ impl BacktraceFrameFmt<'_, '_, '_> {
             frame_ip = usize::wrapping_sub(frame_ip as usize, image_base as _) as _;
         }
 
-        // Print the index of the frame as well as the optional instruction
-        // pointer of the frame. If we're beyond the first symbol of this frame
-        // though we just print appropriate whitespace.
-        if self.symbol_index == 0 {
-            write!(self.fmt.fmt, "{:4}: ", self.fmt.frame_index)?;
-            if let PrintFmt::Full = self.fmt.format {
-                write!(self.fmt.fmt, "{:1$?} - ", frame_ip, HEX_WIDTH)?;
-            }
-        } else {
-            write!(self.fmt.fmt, "      ")?;
-            if let PrintFmt::Full = self.fmt.format {
-                write!(self.fmt.fmt, "{:1$}", "", HEX_WIDTH + 3)?;
-            }
+        // If we are not printing the first frame, print a comma and space before opening the "map"
+        if !self.is_first_frame {
+            self.fmt.fmt.write_str(", ")?;
         }
+        self.fmt.fmt.write_str("{ ")?;
 
         // Next up write out the symbol name, using the alternate formatting for
         // more information if we're a full backtrace. Here we also handle
         // symbols which don't have a name,
         match (symbol_name, &self.fmt.format) {
-            (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "{:#}", name)?,
-            (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "{}", name)?,
-            (None, _) | (_, PrintFmt::__Nonexhaustive) => write!(self.fmt.fmt, "<unknown>")?,
+            (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "function: \"{:#}\"", name)?,
+            (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "function: \"{}\"", name)?,
+            (None, _) | (_, PrintFmt::__Nonexhaustive) => write!(self.fmt.fmt, "function: \"<unknown>\"")?,
         }
-        self.fmt.fmt.write_str("\n")?;
 
         // And last up, print out the filename/line number if they're available.
         if let (Some(file), Some(line)) = (filename, lineno) {
             self.print_fileline(file, line)?;
         }
 
+        // Close the "map"
+        self.fmt.fmt.write_str(" }")?;
+
         Ok(())
     }
 
     fn print_fileline(&mut self, file: BytesOrWideString, line: u32) -> fmt::Result {
-        // Filename/line are printed on lines under the symbol name, so print
-        // some appropriate whitespace to sort of right-align ourselves.
-        if let PrintFmt::Full = self.fmt.format {
-            write!(self.fmt.fmt, "{:1$}", "", HEX_WIDTH)?;
-        }
-        write!(self.fmt.fmt, "             at ")?;
-
         // Delegate to our internal callback to print the filename and then
         // print out the line number.
+        self.fmt.fmt.write_str(", file: \"")?;
         (self.fmt.print_path)(self.fmt.fmt, file)?;
-        write!(self.fmt.fmt, ":{}\n", line)?;
+        write!(self.fmt.fmt, "\", line :{}", line)?;
         Ok(())
     }
 
