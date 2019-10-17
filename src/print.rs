@@ -239,7 +239,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // print out the line number.
         self.fmt.fmt.write_str(", file: \"")?;
         (self.fmt.print_path)(self.fmt.fmt, file)?;
-        write!(self.fmt.fmt, "\", line :{}", line)?;
+        write!(self.fmt.fmt, "\", line: {}", line)?;
         Ok(())
     }
 
