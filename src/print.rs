@@ -1,7 +1,7 @@
 use crate::BytesOrWideString;
+use cfg_if::cfg_if;
 use core::ffi::c_void;
 use core::fmt;
-use cfg_if::cfg_if;
 
 #[cfg(target_os = "fuchsia")]
 mod fuchsia;
@@ -81,7 +81,7 @@ impl<'a, 'b> BacktraceFmt<'a, 'b> {
     }
 
     /// Completes the backtrace output.
-    /// 
+    ///
     /// If not running on fuchsia, then close the list, otherwise this is a no-op.
     pub fn finish(&mut self) -> fmt::Result {
         #[cfg(not(target_os = "fuchsia"))]
@@ -220,7 +220,9 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         match (symbol_name, &self.fmt.format) {
             (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "function: \"{:#}\"", name)?,
             (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "function: \"{}\"", name)?,
-            (None, _) | (_, PrintFmt::__Nonexhaustive) => write!(self.fmt.fmt, "function: \"<unknown>\"")?,
+            (None, _) | (_, PrintFmt::__Nonexhaustive) => {
+                write!(self.fmt.fmt, "function: \"<unknown>\"")?
+            }
         }
 
         // And last up, print out the filename/line number if they're available.
