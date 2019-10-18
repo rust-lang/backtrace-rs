@@ -354,11 +354,11 @@ impl fmt::Debug for Backtrace {
             if !full {
                 if let Ok(cwd) = &cwd {
                     if let Ok(suffix) = path.strip_prefix(cwd) {
-                        return fmt::Display::fmt(&suffix.display(), fmt);
+                        return write!(fmt, "{}", &suffix.display());
                     }
                 }
             }
-            fmt::Display::fmt(&path.display(), fmt)
+            write!(fmt, "{}", &path.display())
         };
 
         let mut f = BacktraceFmt::new(fmt, style, &mut print_path);
