@@ -1,5 +1,4 @@
-use crate::PrintFmt;
-use crate::{resolve, resolve_frame, trace, BacktraceFmt, Symbol, SymbolName};
+use crate::{resolve, resolve_frame, trace, BacktraceFmt, PrintFmt, Symbol, SymbolName};
 use std::ffi::c_void;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -322,15 +321,27 @@ impl BacktraceSymbol {
     pub fn lineno(&self) -> Option<u32> {
         self.lineno
     }
+
+    /// Returns whether the BacktraceSymbol has any data associated with it
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none() && self.addr.is_none() && self.filename.is_none() && self.lineno.is_none()
+    }
 }
 
 impl fmt::Debug for Backtrace {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let full = fmt.alternate();
+        let precision = fmt.precision();
+
         let (frames, style) = if full {
             (&self.frames[..], PrintFmt::Full)
         } else {
             (&self.frames[self.actual_start_index..], PrintFmt::Short)
+        };
+
+        let frames = match precision {
+            Some(precision) => &frames[..precision],
+            None => frames,
         };
 
         // When printing paths we try to strip the cwd if it exists, otherwise
@@ -343,11 +354,11 @@ impl fmt::Debug for Backtrace {
             if !full {
                 if let Ok(cwd) = &cwd {
                     if let Ok(suffix) = path.strip_prefix(cwd) {
-                        return fmt::Display::fmt(&suffix.display(), fmt);
+                        return write!(fmt, "{}", &suffix.display());
                     }
                 }
             }
-            fmt::Display::fmt(&path.display(), fmt)
+            write!(fmt, "{}", &path.display())
         };
 
         let mut f = BacktraceFmt::new(fmt, style, &mut print_path);
