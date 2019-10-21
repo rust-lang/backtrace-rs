@@ -321,11 +321,6 @@ impl BacktraceSymbol {
     pub fn lineno(&self) -> Option<u32> {
         self.lineno
     }
-
-    /// Returns whether the BacktraceSymbol has any data associated with it
-    pub fn is_empty(&self) -> bool {
-        self.name.is_none() && self.addr.is_none() && self.filename.is_none() && self.lineno.is_none()
-    }
 }
 
 impl fmt::Debug for Backtrace {
