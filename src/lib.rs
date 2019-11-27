@@ -112,6 +112,26 @@ impl Drop for Bomb {
     }
 }
 
+fn format_utf8_lossy(mut bytes: &[u8], f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    loop {
+        match core::str::from_utf8(bytes) {
+            Ok(s) => {
+                f.write_str(s)?;
+                break;
+            }
+            Err(err) => {
+                f.write_str("\u{FFFD}")?;
+
+                match err.error_len() {
+                    Some(len) => bytes = &bytes[err.valid_up_to() + len..],
+                    None => break,
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[allow(dead_code)]
 #[cfg(feature = "std")]
 mod lock {

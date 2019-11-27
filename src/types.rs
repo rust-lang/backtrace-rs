@@ -1,9 +1,10 @@
 //! Platform dependent types.
 
+use core::fmt::{self, Write};
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::borrow::Cow;
-        use std::fmt;
         use std::path::PathBuf;
         use std::prelude::v1::*;
         use std::str;
@@ -75,9 +76,16 @@ impl<'a> BytesOrWideString<'a> {
     }
 }
 
-#[cfg(feature = "std")]
 impl<'a> fmt::Display for BytesOrWideString<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.to_str_lossy().fmt(f)
+        match *self {
+            BytesOrWideString::Bytes(bytes) => crate::format_utf8_lossy(bytes, f),
+            BytesOrWideString::Wide(wide) => {
+                for c in core::char::decode_utf16(wide.iter().cloned()) {
+                    f.write_char(c.unwrap_or(core::char::REPLACEMENT_CHARACTER))?
+                }
+                Ok(())
+            }
+        }
     }
 }

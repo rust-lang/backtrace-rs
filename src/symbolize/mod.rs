@@ -8,6 +8,7 @@ cfg_if::cfg_if! {
 }
 
 use crate::backtrace::Frame;
+use crate::format_utf8_lossy;
 use crate::types::BytesOrWideString;
 use core::ffi::c_void;
 use rustc_demangle::{try_demangle, Demangle};
@@ -348,30 +349,6 @@ impl<'a> SymbolName<'a> {
     }
 }
 
-fn format_symbol_name(
-    fmt: fn(&str, &mut fmt::Formatter) -> fmt::Result,
-    mut bytes: &[u8],
-    f: &mut fmt::Formatter,
-) -> fmt::Result {
-    while bytes.len() > 0 {
-        match str::from_utf8(bytes) {
-            Ok(name) => {
-                fmt(name, f)?;
-                break;
-            }
-            Err(err) => {
-                fmt("\u{FFFD}", f)?;
-
-                match err.error_len() {
-                    Some(len) => bytes = &bytes[err.valid_up_to() + len..],
-                    None => break,
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "cpp_demangle")] {
         impl<'a> fmt::Display for SymbolName<'a> {
@@ -381,7 +358,7 @@ cfg_if::cfg_if! {
                 } else if let Some(ref cpp) = self.cpp_demangled.0 {
                     cpp.fmt(f)
                 } else {
-                    format_symbol_name(fmt::Display::fmt, self.bytes, f)
+                    format_utf8_lossy(self.bytes, f)
                 }
             }
         }
@@ -391,7 +368,7 @@ cfg_if::cfg_if! {
                 if let Some(ref s) = self.demangled {
                     s.fmt(f)
                 } else {
-                    format_symbol_name(fmt::Display::fmt, self.bytes, f)
+                    format_utf8_lossy(self.bytes, f)
                 }
             }
         }
@@ -418,7 +395,7 @@ cfg_if::cfg_if! {
                     }
                 }
 
-                format_symbol_name(fmt::Debug::fmt, self.bytes, f)
+                format_utf8_lossy(self.bytes, f)
             }
         }
     } else {
@@ -427,7 +404,7 @@ cfg_if::cfg_if! {
                 if let Some(ref s) = self.demangled {
                     s.fmt(f)
                 } else {
-                    format_symbol_name(fmt::Debug::fmt, self.bytes, f)
+                    format_utf8_lossy(self.bytes, f)
                 }
             }
         }
