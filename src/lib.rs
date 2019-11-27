@@ -76,6 +76,9 @@ extern crate std;
 pub use crate::backtrace::{trace_unsynchronized, Frame};
 mod backtrace;
 
+pub use crate::format::format_trace_unsynchronized;
+mod format;
+
 pub use crate::symbolize::resolve_frame_unsynchronized;
 pub use crate::symbolize::{resolve_unsynchronized, Symbol, SymbolName};
 mod symbolize;
@@ -92,6 +95,7 @@ pub use print::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         pub use crate::backtrace::trace;
+        pub use crate::format::format_trace;
         pub use crate::symbolize::{resolve, resolve_frame};
         pub use crate::capture::{Backtrace, BacktraceFrame, BacktraceSymbol};
         mod capture;
