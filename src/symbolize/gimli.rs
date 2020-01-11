@@ -82,9 +82,10 @@ fn mmap(path: &Path) -> Option<Mmap> {
 
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        use std::cmp;
         use goblin::pe::{self, PE};
         use goblin::strtab::Strtab;
+        use std::cmp;
+        use std::convert::TryFrom;
 
         struct Object<'a> {
             pe: PE<'a>,
