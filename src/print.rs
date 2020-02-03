@@ -1,8 +1,7 @@
 use crate::BytesOrWideString;
+use cfg_if::cfg_if;
 use core::ffi::c_void;
 use core::fmt;
-
-const HEX_WIDTH: usize = 2 + 2 * core::mem::size_of::<usize>();
 
 #[cfg(target_os = "fuchsia")]
 mod fuchsia;
@@ -57,9 +56,13 @@ impl<'a, 'b> BacktraceFmt<'a, 'b> {
     /// sumbolicated later, and otherwise this should just be the first method
     /// you call after creating a `BacktraceFmt`.
     pub fn add_context(&mut self) -> fmt::Result {
-        self.fmt.write_str("stack backtrace:\n")?;
-        #[cfg(target_os = "fuchsia")]
-        fuchsia::print_dso_context(self.fmt)?;
+        cfg_if! {
+            if #[cfg(target_os = "fuchsia")] {
+                fuchsia::print_dso_context(self.fmt)?;
+            } else {
+                self.fmt.write_str("[")?;
+            }
+        }
         Ok(())
     }
 
@@ -69,18 +72,20 @@ impl<'a, 'b> BacktraceFmt<'a, 'b> {
     /// to actually print a frame, and on destruction it will increment the
     /// frame counter.
     pub fn frame(&mut self) -> BacktraceFrameFmt<'_, 'a, 'b> {
+        let is_first_frame = self.frame_index == 0;
         BacktraceFrameFmt {
             fmt: self,
+            is_first_frame,
             symbol_index: 0,
         }
     }
 
     /// Completes the backtrace output.
     ///
-    /// This is currently a no-op but is added for future compatibility with
-    /// backtrace formats.
+    /// If not running on fuchsia, then close the list, otherwise this is a no-op.
     pub fn finish(&mut self) -> fmt::Result {
-        // Currently a no-op-- including this hook to allow for future additions.
+        #[cfg(not(target_os = "fuchsia"))]
+        self.fmt.write_str("]")?;
         Ok(())
     }
 }
@@ -90,6 +95,7 @@ impl<'a, 'b> BacktraceFmt<'a, 'b> {
 /// This type is created by the `BacktraceFmt::frame` function.
 pub struct BacktraceFrameFmt<'fmt, 'a, 'b> {
     fmt: &'fmt mut BacktraceFmt<'a, 'b>,
+    is_first_frame: bool,
     symbol_index: usize,
 }
 
@@ -202,51 +208,40 @@ impl BacktraceFrameFmt<'_, '_, '_> {
             frame_ip = usize::wrapping_sub(frame_ip as usize, image_base as _) as _;
         }
 
-        // Print the index of the frame as well as the optional instruction
-        // pointer of the frame. If we're beyond the first symbol of this frame
-        // though we just print appropriate whitespace.
-        if self.symbol_index == 0 {
-            write!(self.fmt.fmt, "{:4}: ", self.fmt.frame_index)?;
-            if let PrintFmt::Full = self.fmt.format {
-                write!(self.fmt.fmt, "{:1$?} - ", frame_ip, HEX_WIDTH)?;
-            }
-        } else {
-            write!(self.fmt.fmt, "      ")?;
-            if let PrintFmt::Full = self.fmt.format {
-                write!(self.fmt.fmt, "{:1$}", "", HEX_WIDTH + 3)?;
-            }
+        // If we are not printing the first frame, print a comma and space before opening the "map"
+        if !self.is_first_frame {
+            self.fmt.fmt.write_str(", ")?;
         }
+        self.fmt.fmt.write_str("{ ")?;
 
         // Next up write out the symbol name, using the alternate formatting for
         // more information if we're a full backtrace. Here we also handle
         // symbols which don't have a name,
         match (symbol_name, &self.fmt.format) {
-            (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "{:#}", name)?,
-            (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "{}", name)?,
-            (None, _) | (_, PrintFmt::__Nonexhaustive) => write!(self.fmt.fmt, "<unknown>")?,
+            (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "function: \"{:#}\"", name)?,
+            (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "function: \"{}\"", name)?,
+            (None, _) | (_, PrintFmt::__Nonexhaustive) => {
+                write!(self.fmt.fmt, "function: \"<unknown>\"")?
+            }
         }
-        self.fmt.fmt.write_str("\n")?;
 
         // And last up, print out the filename/line number if they're available.
         if let (Some(file), Some(line)) = (filename, lineno) {
             self.print_fileline(file, line)?;
         }
 
+        // Close the "map"
+        self.fmt.fmt.write_str(" }")?;
+
         Ok(())
     }
 
     fn print_fileline(&mut self, file: BytesOrWideString, line: u32) -> fmt::Result {
-        // Filename/line are printed on lines under the symbol name, so print
-        // some appropriate whitespace to sort of right-align ourselves.
-        if let PrintFmt::Full = self.fmt.format {
-            write!(self.fmt.fmt, "{:1$}", "", HEX_WIDTH)?;
-        }
-        write!(self.fmt.fmt, "             at ")?;
-
         // Delegate to our internal callback to print the filename and then
         // print out the line number.
+        self.fmt.fmt.write_str(", file: \"")?;
         (self.fmt.print_path)(self.fmt.fmt, file)?;
-        write!(self.fmt.fmt, ":{}\n", line)?;
+        write!(self.fmt.fmt, "\", line: {}", line)?;
         Ok(())
     }
 
