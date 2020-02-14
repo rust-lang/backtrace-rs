@@ -35,7 +35,13 @@ cpp_demangle = { default-features = false, version = "0.2.3", optional = true }
 
 # Optional dependencies enabled through the `gimli-symbolize` feature
 addr2line = { version = "0.11.0", optional = true, default-features = false, features = ['std'] }
-goblin = { version = "0.2", optional = true, default-features = false, features = ['elf32', 'elf64', 'mach32', 'mach64', 'pe32', 'pe64', 'std'] }
+
+[dependencies.object]
+git = 'https://github.com/philipc/object'
+branch = 'symbol-table'
+optional = true
+default-features = false
+features = ['read_core', 'elf', 'macho', 'pe']
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.3", optional = true }
@@ -95,7 +101,7 @@ kernel32 = []
 libbacktrace = ["backtrace-sys/backtrace-sys"]
 dladdr = []
 coresymbolication = []
-gimli-symbolize = ["addr2line", "goblin"]
+gimli-symbolize = ["addr2line", "object"]
 
 #=======================================
 # Methods of serialization
