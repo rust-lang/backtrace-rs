@@ -66,7 +66,7 @@ pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
     trace_imp(&mut cb)
 }
 
-/// A trait representing one frame of a backtrace, yielded to the `trace`
+/// A struct representing one frame of a backtrace, yielded to the `trace`
 /// function of this crate.
 ///
 /// The tracing function's closure will be yielded frames, and the frame is
@@ -75,6 +75,110 @@ pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
 #[derive(Clone)]
 pub struct Frame {
     pub(crate) inner: FrameImp,
+}
+
+/// A struct representing the registers of one frame of a backtrace.
+///
+/// This struct may not contain all registers existing on any given architecture.
+#[cfg(not(target_arch = "x86_64"))]
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub struct Registers;
+
+/// A struct representing the registers of one frame of a backtrace.
+///
+/// This struct may not contain all registers existing on any given architecture.
+// Order from https://github.com/libunwind/libunwind/blob/d32956507cf29d9b1a98a8bce53c78623908f4fe/include/libunwind-x86_64.h#L56-L107
+#[cfg(target_arch = "x86_64")]
+#[non_exhaustive]
+#[derive(Clone)]
+#[allow(missing_docs)]
+pub struct Registers {
+    pub rax: u64,
+    pub rdx: u64,
+    pub rcx: u64,
+    pub rbx: u64,
+
+    pub rsi: u64,
+    pub rdi: u64,
+    pub rbp: u64,
+    pub rsp: u64,
+
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
+    // pub rip: u64,
+
+    /*
+    #ifdef CONFIG_MSABI_SUPPORT
+    pub xmm0: u64,
+    pub xmm1: u64,
+    pub xmm2: u64,
+    pub xmm3: u64,
+    pub xmm4: u64,
+    pub xmm5: u64,
+    pub xmm6: u64,
+    pub xmm7: u64,
+    pub xmm8: u64,
+    pub xmm9: u64,
+    pub xmm10: u64,
+    pub xmm11: u64,
+    pub xmm12: u64,
+    pub xmm13: u64,
+    pub xmm14: u64,
+    pub xmm15: u64,
+    */
+    // pub cfa: u64,
+}
+
+impl fmt::Debug for Registers {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        struct FmtHex<T: fmt::LowerHex>(T);
+
+        impl<T: fmt::LowerHex> fmt::Debug for FmtHex<T> {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                #[cfg(target_pointer_width = "16")]
+                {
+                    write!(f, "0x{:04x}", self.0)
+                }
+                #[cfg(target_pointer_width = "32")]
+                {
+                    write!(f, "0x{:08x}", self.0)
+                }
+                #[cfg(target_pointer_width = "64")]
+                {
+                    write!(f, "0x{:016x}", self.0)
+                }
+            }
+        }
+
+        macro_rules! fmt_regs {
+            ($($reg:ident),*) => {{
+                let Registers {
+                    $($reg,)*
+                } = *self;
+
+                f.debug_struct("Registers")
+                    $(.field(stringify!($reg), &FmtHex($reg)))*
+                    .finish()
+            }}
+        }
+
+        #[cfg(target_arch = "x86_64")]
+        {
+            fmt_regs!(rax, rdx, rbx, rcx, rdi, rsi, rbp, rsp, r8, r9, r10, r11, r12, r13, r14, r15)
+        }
+
+        #[cfg(not(target_arch = "x86_64"))]
+        {
+            fmt_args!()
+        }
+    }
 }
 
 impl Frame {
@@ -100,6 +204,12 @@ impl Frame {
     /// on the `ip` given above.
     pub fn symbol_address(&self) -> *mut c_void {
         self.inner.symbol_address()
+    }
+
+    /// Returns the registers of this frame. Returns `None` when the capture backend doesn't support
+    /// resolving registers.
+    pub fn registers(&self) -> Option<Registers> {
+        self.inner.registers()
     }
 }
 

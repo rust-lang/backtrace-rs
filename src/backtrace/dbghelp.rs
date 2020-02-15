@@ -46,6 +46,10 @@ impl Frame {
         self.ip()
     }
 
+    pub fn registers(&self) -> Option<super::Registers> {
+        None
+    }
+
     fn addr_pc(&self) -> &ADDRESS64 {
         match self {
             Frame::New(new) => &new.AddrPC,

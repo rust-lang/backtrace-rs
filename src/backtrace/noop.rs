@@ -17,4 +17,8 @@ impl Frame {
     pub fn symbol_address(&self) -> *mut c_void {
         0 as *mut _
     }
+
+    pub fn registers(&self) -> Option<super::Registers> {
+        None
+    }
 }

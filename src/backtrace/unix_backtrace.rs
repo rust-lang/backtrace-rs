@@ -32,6 +32,9 @@ impl Frame {
     pub fn symbol_address(&self) -> *mut c_void {
         self.ip()
     }
+    pub fn registers(&self) -> Option<super::Registers> {
+        None
+    }
 }
 
 extern "C" {

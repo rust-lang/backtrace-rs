@@ -75,6 +75,13 @@ impl Frame {
             Frame::Deserialized { symbol_address, .. } => symbol_address as *mut c_void,
         }
     }
+
+    fn registers(&self) -> Option<crate::backtrace::Registers> {
+        match *self {
+            Frame::Raw(ref f) => f.registers(),
+            Frame::Deserialized { .. } => todo!(), // FIXME
+        }
+    }
 }
 
 /// Captured version of a symbol in a backtrace.
@@ -263,6 +270,16 @@ impl BacktraceFrame {
         self.frame.symbol_address() as *mut c_void
     }
 
+    /// Same as `Frame::registers`
+    ///
+    /// # Required features
+    ///
+    /// This function requires the `std` feature of the `backtrace` crate to be
+    /// enabled, and the `std` feature is enabled by default.
+    pub fn registers(&self) -> Option<crate::backtrace::Registers> {
+        self.frame.registers()
+    }
+
     /// Returns the list of symbols that this frame corresponds to.
     ///
     /// Normally there is only one symbol per frame, but sometimes if a number
@@ -371,6 +388,7 @@ impl fmt::Debug for BacktraceFrame {
         fmt.debug_struct("BacktraceFrame")
             .field("ip", &self.ip())
             .field("symbol_address", &self.symbol_address())
+            .field("registers", &self.registers())
             .finish()
     }
 }

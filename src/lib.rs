@@ -76,7 +76,7 @@
 #[macro_use]
 extern crate std;
 
-pub use crate::backtrace::{trace_unsynchronized, Frame};
+pub use crate::backtrace::{trace_unsynchronized, Frame, Registers};
 mod backtrace;
 
 pub use crate::symbolize::resolve_frame_unsynchronized;

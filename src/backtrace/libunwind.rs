@@ -27,11 +27,14 @@
 
 use core::ffi::c_void;
 
+use super::Registers;
+
 pub enum Frame {
     Raw(*mut uw::_Unwind_Context),
     Cloned {
         ip: *mut c_void,
         symbol_address: *mut c_void,
+        registers: Registers,
     },
 }
 
@@ -70,6 +73,40 @@ impl Frame {
             unsafe { uw::_Unwind_FindEnclosingFunction(self.ip()) }
         }
     }
+
+    pub fn registers(&self) -> Option<Registers> {
+        match *self {
+            Frame::Raw(ctx) => {
+                #[cfg(target_arch = "x86_64")]
+                unsafe {
+                    Some(Registers {
+                        rax: uw::_Unwind_GetGR(ctx, 0),
+                        rdx: uw::_Unwind_GetGR(ctx, 1),
+                        rcx: uw::_Unwind_GetGR(ctx, 2),
+                        rbx: uw::_Unwind_GetGR(ctx, 3),
+
+                        rsi: uw::_Unwind_GetGR(ctx, 4),
+                        rdi: uw::_Unwind_GetGR(ctx, 5),
+                        rbp: uw::_Unwind_GetGR(ctx, 6),
+                        rsp: uw::_Unwind_GetGR(ctx, 7),
+
+                        r8: uw::_Unwind_GetGR(ctx, 8),
+                        r9: uw::_Unwind_GetGR(ctx, 9),
+                        r10: uw::_Unwind_GetGR(ctx, 10),
+                        r11: uw::_Unwind_GetGR(ctx, 11),
+                        r12: uw::_Unwind_GetGR(ctx, 12),
+                        r13: uw::_Unwind_GetGR(ctx, 13),
+                        r14: uw::_Unwind_GetGR(ctx, 14),
+                        r15: uw::_Unwind_GetGR(ctx, 15),
+                    })
+                }
+
+                #[cfg(not(target_arch = "x86_64"))]
+                Some(Registers {})
+            }
+            Frame::Cloned { ref registers, .. } => Some(registers.clone()),
+        }
+    }
 }
 
 impl Clone for Frame {
@@ -77,6 +114,7 @@ impl Clone for Frame {
         Frame::Cloned {
             ip: self.ip(),
             symbol_address: self.symbol_address(),
+            registers: self.registers().unwrap(),
         }
     }
 }
@@ -118,6 +156,7 @@ mod uw {
     pub use self::_Unwind_Reason_Code::*;
 
     use core::ffi::c_void;
+    use libc::c_int;
 
     #[repr(C)]
     pub enum _Unwind_Reason_Code {
@@ -160,6 +199,9 @@ mod uw {
             not(all(target_os = "linux", target_arch = "arm"))
         ))]
         pub fn _Unwind_FindEnclosingFunction(pc: *mut c_void) -> *mut c_void;
+
+        #[cfg(target_arch = "x86_64")]
+        pub fn _Unwind_GetGR(ctx: *mut _Unwind_Context, reg: c_int) -> u64;
     }
 
     // On android, the function _Unwind_GetIP is a macro, and this is the
