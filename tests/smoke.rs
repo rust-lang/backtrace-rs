@@ -253,16 +253,24 @@ fn is_serde() {
 #[test]
 #[cfg(target_os = "macos")]
 fn simple_test() {
-    use std::{env, panic, fs};
+    use std::{env, fs, panic};
 
     // Find our dSYM and replace the DWARF binary with an empty file
     let mut dsym_path = env::current_exe().unwrap();
     let executable_name = dsym_path.file_name().unwrap().to_str().unwrap().to_string();
     assert!(dsym_path.pop()); // Pop executable
-    dsym_path.push(format!("{}.dSYM/Contents/Resources/DWARF/{0}", executable_name));
+    dsym_path.push(format!(
+        "{}.dSYM/Contents/Resources/DWARF/{0}",
+        executable_name
+    ));
     {
-        let file = fs::OpenOptions::new().read(false).write(true).truncate(true).create(false)
-            .open(&dsym_path).unwrap();
+        let file = fs::OpenOptions::new()
+            .read(false)
+            .write(true)
+            .truncate(true)
+            .create(false)
+            .open(&dsym_path)
+            .unwrap();
     }
 
     env::set_var("RUST_BACKTRACE", "1");
