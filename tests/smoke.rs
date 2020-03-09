@@ -264,7 +264,7 @@ fn simple_test() {
         executable_name
     ));
     {
-        let file = fs::OpenOptions::new()
+        let _ = fs::OpenOptions::new()
             .read(false)
             .write(true)
             .truncate(true)
