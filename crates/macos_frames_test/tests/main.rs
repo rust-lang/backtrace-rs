@@ -1,6 +1,10 @@
 // Based on from https://github.com/rust-lang/rust/blob/2cb0b8582ebbf9784db9cec06fff517badbf4553/src/test/ui/issues/issue-45731.rs
-// This needs to go in its own file in its own directory, since it modifies the dSYM
-// for the entire directory
+// This needs to go in a crate by itself, since it modifies the dSYM for the entire test
+// output directory.
+//
+// Note that this crate is *not* part of the overall `backtrace-rs` workspace,
+// so that it gets its own 'target' directory. We manually invoke this test
+// in .github/workflows/main.yml by passing `--manifest-path` to Cargo
 #[test]
 #[cfg(target_os = "macos")]
 fn backtrace_no_dsym() {
