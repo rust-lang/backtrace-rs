@@ -17,4 +17,8 @@ impl Frame {
     pub fn symbol_address(&self) -> *mut c_void {
         0 as *mut _
     }
+
+    pub fn gr(&self, index: u32) -> Option<usize> {
+        None
+    }
 }

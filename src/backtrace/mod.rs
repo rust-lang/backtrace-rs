@@ -101,6 +101,14 @@ impl Frame {
     pub fn symbol_address(&self) -> *mut c_void {
         self.inner.symbol_address()
     }
+
+    /// Returns the register value at this frame.
+    ///
+    /// The general purpose register value may not be available. The register
+    /// index differs between platforms.
+    pub fn gr(&self, index: u32) -> Option<usize> {
+        self.inner.gr(index)
+    }
 }
 
 impl fmt::Debug for Frame {
