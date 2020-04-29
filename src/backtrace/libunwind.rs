@@ -51,6 +51,16 @@ impl Frame {
         unsafe { uw::_Unwind_GetIP(ctx) as *mut c_void }
     }
 
+    pub fn gr(&self, index: u32) -> Option<usize> {
+        let ctx = match *self {
+            Frame::Raw(ctx) => ctx,
+            Frame::Cloned { .. } => {
+                return None;
+            }
+        };
+        Some(unsafe { uw::_Unwind_GetGR(ctx, index) as usize })
+    }
+
     pub fn symbol_address(&self) -> *mut c_void {
         if let Frame::Cloned { symbol_address, .. } = *self {
             return symbol_address;
@@ -153,6 +163,13 @@ mod uw {
             not(all(target_os = "linux", target_arch = "arm"))
         ))]
         pub fn _Unwind_GetIP(ctx: *mut _Unwind_Context) -> libc::uintptr_t;
+
+        #[cfg(all(
+            not(all(target_os = "android", target_arch = "arm")),
+            not(all(target_os = "freebsd", target_arch = "arm")),
+            not(all(target_os = "linux", target_arch = "arm"))
+        ))]
+        pub fn _Unwind_GetGR(ctx: *mut _Unwind_Context, index: u32) -> libc::size_t;
 
         #[cfg(all(
             not(target_os = "android"),

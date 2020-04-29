@@ -32,6 +32,9 @@ impl Frame {
     pub fn symbol_address(&self) -> *mut c_void {
         self.ip()
     }
+    pub fn gr(&self, index: u32) -> Option<usize> {
+        None
+    }
 }
 
 extern "C" {

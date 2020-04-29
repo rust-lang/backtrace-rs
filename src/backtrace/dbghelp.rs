@@ -46,6 +46,10 @@ impl Frame {
         self.ip()
     }
 
+    pub fn gr(&self, index: u32) -> Option<usize> {
+        None
+    }
+
     fn addr_pc(&self) -> &ADDRESS64 {
         match self {
             Frame::New(new) => &new.AddrPC,
