@@ -37,8 +37,7 @@ cpp_demangle = { default-features = false, version = "0.2.3", optional = true }
 addr2line = { version = "0.11.0", optional = true, default-features = false, features = ['std'] }
 
 [dependencies.object]
-git = 'https://github.com/philipc/object'
-branch = 'symbol-table'
+git = 'https://github.com/gimli-rs/object'
 optional = true
 default-features = false
 features = ['read_core', 'elf', 'macho', 'pe']
