@@ -176,6 +176,7 @@ cfg_if::cfg_if! {
         use std::os::unix::prelude::*;
         use std::ffi::{OsStr, CStr};
         use object::{Bytes, NativeEndian};
+        use object::macho;
         use object::read::macho::{MachHeader, Section, Segment as _, Nlist};
 
         #[cfg(target_pointer_width = "32")]
@@ -248,71 +249,145 @@ cfg_if::cfg_if! {
             }
         }
 
+        fn find_header(mut data: Bytes<'_>) -> Option<(&'_ Mach, Bytes<'_>)> {
+            use object::endian::BigEndian;
+
+            let desired_cpu = || {
+                if cfg!(target_arch = "x86") {
+                    Some(macho::CPU_TYPE_X86)
+                } else if cfg!(target_arch = "x86_64") {
+                    Some(macho::CPU_TYPE_X86_64)
+                } else if cfg!(target_arch = "arm") {
+                    Some(macho::CPU_TYPE_ARM)
+                } else if cfg!(target_arch = "aarch64") {
+                    Some(macho::CPU_TYPE_ARM64)
+                } else {
+                    None
+                }
+            };
+
+            match data.clone().read::<object::endian::U32<NativeEndian>>().ok()?.get(NativeEndian) {
+                macho::MH_MAGIC_64
+                | macho::MH_CIGAM_64
+                | macho::MH_MAGIC
+                | macho::MH_CIGAM => {}
+
+                macho::FAT_MAGIC | macho::FAT_CIGAM => {
+                    let mut header_data = data;
+                    let endian = BigEndian;
+                    let header = header_data.read::<macho::FatHeader>().ok()?;
+                    let nfat = header.nfat_arch.get(endian);
+                    let arch = (0..nfat)
+                        .filter_map(|_| header_data.read::<macho::FatArch32>().ok())
+                        .find(|arch| desired_cpu() == Some(arch.cputype.get(endian)))?;
+                    let offset = arch.offset.get(endian);
+                    let size = arch.size.get(endian);
+                    data = data.read_bytes_at(
+                        offset.try_into().ok()?,
+                        size.try_into().ok()?,
+                    ).ok()?;
+                }
+
+                macho::FAT_MAGIC_64 | macho::FAT_CIGAM_64 => {
+                    let mut header_data = data;
+                    let endian = BigEndian;
+                    let header = header_data.read::<macho::FatHeader>().ok()?;
+                    let nfat = header.nfat_arch.get(endian);
+                    let arch = (0..nfat)
+                        .filter_map(|_| header_data.read::<macho::FatArch64>().ok())
+                        .find(|arch| desired_cpu() == Some(arch.cputype.get(endian)))?;
+                    let offset = arch.offset.get(endian);
+                    let size = arch.size.get(endian);
+                    data = data.read_bytes_at(
+                        offset.try_into().ok()?,
+                        size.try_into().ok()?,
+                    ).ok()?;
+                }
+
+                _ => return None,
+            }
+
+            Mach::parse(data).ok().map(|h| (h, data))
+        }
+
         #[allow(deprecated)]
         fn native_libraries() -> Vec<Library> {
             let mut ret = Vec::new();
-            unsafe {
-                for i in 0..libc::_dyld_image_count() {
-                    ret.extend(native_library(i));
-                }
+            let images = unsafe { libc::_dyld_image_count() };
+            for i in 0..images {
+                ret.extend(native_library(i));
             }
             return ret;
         }
 
         #[allow(deprecated)]
-        unsafe fn native_library(i: u32) -> Option<Library> {
-            let name = libc::_dyld_get_image_name(i);
-            if name.is_null() {
-                return None;
-            }
-            let name = CStr::from_ptr(name);
-            let header = libc::_dyld_get_image_header(i);
-            if header.is_null() {
-                return None;
-            }
+        fn native_library(i: u32) -> Option<Library> {
+            // Fetch the name of this library which corresponds to the path of
+            // where to load it as well.
+            let name = unsafe {
+                let name = libc::_dyld_get_image_name(i);
+                if name.is_null() {
+                    return None;
+                }
+                CStr::from_ptr(name)
+            };
+
+            // Load the image header of this library and delegate to `object` to
+            // parse all the load commands so we can figure out all the segments
+            // involved here.
+            let (mut load_commands, endian) = unsafe {
+                let header = libc::_dyld_get_image_header(i);
+                if header.is_null() {
+                    return None;
+                }
+                match (*header).magic {
+                    macho::MH_MAGIC => {
+                        let endian = NativeEndian;
+                        let header = &*(header as *const macho::MachHeader32<NativeEndian>);
+                        let data = core::slice::from_raw_parts(
+                            header as *const _ as *const u8,
+                            mem::size_of_val(header) + header.sizeofcmds.get(endian) as usize
+                        );
+                        (header.load_commands(endian, Bytes(data)).ok()?, endian)
+                    }
+                    macho::MH_MAGIC_64 => {
+                        let endian = NativeEndian;
+                        let header = &*(header as *const macho::MachHeader64<NativeEndian>);
+                        let data = core::slice::from_raw_parts(
+                            header as *const _ as *const u8,
+                            mem::size_of_val(header) + header.sizeofcmds.get(endian) as usize
+                        );
+                        (header.load_commands(endian, Bytes(data)).ok()?, endian)
+                    }
+                    _ => return None,
+                }
+            };
+
+            // Iterate over the segments and register known regions for segments
+            // that we find. Additionally record information bout text segments
+            // for processing later, see comments below.
             let mut segments = Vec::new();
-            match (*header).magic {
-                libc::MH_MAGIC => {
-                    let mut next_cmd = header.offset(1) as *const libc::load_command;
-                    for _ in 0..(*header).ncmds {
-                        segments.extend(segment(next_cmd));
-                        next_cmd = (next_cmd as usize + (*next_cmd).cmdsize as usize) as *const _;
-                    }
+            while let Some(cmd) = load_commands.next().ok()? {
+                if let Some((seg, _)) = cmd.segment_32().ok()? {
+                    segments.push(LibrarySegment {
+                        len: seg.vmsize(endian).try_into().ok()?,
+                        stated_virtual_memory_address: seg.vmaddr(endian) as *const u8,
+                    });
                 }
-                libc::MH_MAGIC_64 => {
-                    let header = header as *const libc::mach_header_64;
-                    let mut next_cmd = header.offset(1) as *const libc::load_command;
-                    for _ in 0..(*header).ncmds {
-                        segments.extend(segment(next_cmd));
-                        next_cmd = (next_cmd as usize + (*next_cmd).cmdsize as usize) as *const _;
-                    }
+                if let Some((seg, _)) = cmd.segment_64().ok()? {
+                    segments.push(LibrarySegment {
+                        len: seg.vmsize(endian).try_into().ok()?,
+                        stated_virtual_memory_address: seg.vmaddr(endian) as *const u8,
+                    });
                 }
-                _ => return None,
             }
+            let slide = unsafe {
+                libc::_dyld_get_image_vmaddr_slide(i)
+            };
             Some(Library {
                 name: OsStr::from_bytes(name.to_bytes()).to_owned(),
                 segments,
-                bias: libc::_dyld_get_image_vmaddr_slide(i) as *const u8,
-            })
-        }
-
-        unsafe fn segment(cmd: *const libc::load_command) -> Option<LibrarySegment> {
-            Some(match (*cmd).cmd {
-                libc::LC_SEGMENT => {
-                    let cmd = cmd as *const libc::segment_command;
-                    LibrarySegment {
-                        len: (*cmd).vmsize as usize,
-                        stated_virtual_memory_address: (*cmd).vmaddr as *const u8,
-                    }
-                }
-                libc::LC_SEGMENT_64 => {
-                    let cmd = cmd as *const libc::segment_command_64;
-                    LibrarySegment {
-                        len: (*cmd).vmsize as usize,
-                        stated_virtual_memory_address: (*cmd).vmaddr as *const u8,
-                    }
-                }
-                _ => return None,
+                bias: slide as *const u8,
             })
         }
     } else {
@@ -476,8 +551,7 @@ impl Mapping {
         // First up we need to load the unique UUID which is stored in the macho
         // header of the file we're reading, specified at `path`.
         let map = mmap(path)?;
-        let data = Bytes(&map);
-        let macho = Mach::parse(data).ok()?;
+        let (macho, data) = find_header(Bytes(&map))?;
         let endian = macho.endian().ok()?;
         let uuid = macho.uuid(endian, data).ok()??;
 
@@ -513,8 +587,7 @@ impl Mapping {
             for entry in dir.read_dir().ok()? {
                 let entry = entry.ok()?;
                 let map = mmap(&entry.path())?;
-                let data = Bytes(&map);
-                let macho = Mach::parse(data).ok()?;
+                let (macho, data) = find_header(Bytes(&map))?;
                 let endian = macho.endian().ok()?;
                 let entry_uuid = macho.uuid(endian, data).ok()??;
                 if entry_uuid != uuid {
