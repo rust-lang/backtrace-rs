@@ -49,7 +49,7 @@ winapi = { version = "0.3.3", optional = true }
 # Note that not all features are available on all platforms, so even though a
 # feature is enabled some other feature may be used instead.
 [features]
-default = ["std", "libunwind", "libbacktrace", "dladdr", "dbghelp"]
+default = ["std", "libunwind", "libbacktrace", "dbghelp"]
 
 # Include std support.
 std = []
@@ -81,16 +81,12 @@ kernel32 = []
 #   can also provide filename/line number information if debuginfo is
 #   compiled in. This library currently only primarily works on unixes that
 #   are not OSX, however.
-# - dladdr: this feature uses the dladdr(3) function (a glibc extension) to
-#   resolve symbol names. This is fairly unreliable on linux, but works well
-#   enough on OSX.
 # - gimli-symbolize: use the `gimli-rs/addr2line` crate to symbolicate
 #   addresses into file, line, and name using DWARF debug information. At
 #   the moment, this is only possible when targetting Linux, since macOS
 #   splits DWARF out into a separate object file. Enabling this feature
 #   means one less C dependency.
 libbacktrace = ["backtrace-sys/backtrace-sys"]
-dladdr = []
 gimli-symbolize = ["addr2line", "goblin"]
 
 #=======================================
@@ -105,6 +101,7 @@ serialize-serde = ["serde"]
 #
 # Only here for backwards compatibility purposes, they do nothing now.
 coresymbolication = []
+dladdr = []
 
 #=======================================
 # Internal features for testing and such.

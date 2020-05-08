@@ -7,7 +7,6 @@
 use self::gimli::read::EndianSlice;
 use self::gimli::LittleEndian as Endian;
 use self::mmap::Mmap;
-use crate::symbolize::dladdr;
 use crate::symbolize::ResolveWhat;
 use crate::types::BytesOrWideString;
 use crate::SymbolName;
@@ -632,10 +631,12 @@ impl Cache {
 
 pub unsafe fn resolve(what: ResolveWhat, cb: &mut FnMut(&super::Symbol)) {
     let addr = what.address_or_ip();
-    let mut cb = DladdrFallback {
-        cb,
-        addr,
-        called: false,
+    let mut call = |sym: Symbol| {
+        // Extend the lifetime of `sym` to `'static` since we are unfortunately
+        // required to here, but it's ony ever going out as a reference so no
+        // reference to it should be persisted beyond this frame anyway.
+        let sym = mem::transmute::<Symbol, Symbol<'static>>(sym);
+        (cb)(&super::Symbol { inner: sym });
     };
 
     Cache::with_global(|cache| {
@@ -650,9 +651,11 @@ pub unsafe fn resolve(what: ResolveWhat, cb: &mut FnMut(&super::Symbol)) {
             Some(cx) => cx,
             None => return,
         };
+        let mut any_frames = false;
         if let Ok(mut frames) = cx.dwarf.find_frames(addr as u64) {
             while let Ok(Some(frame)) = frames.next() {
-                cb.call(Symbol::Frame {
+                any_frames = true;
+                call(Symbol::Frame {
                     addr: addr as *mut c_void,
                     location: frame.location,
                     name: frame.function.map(|f| f.name.slice()),
@@ -660,50 +663,15 @@ pub unsafe fn resolve(what: ResolveWhat, cb: &mut FnMut(&super::Symbol)) {
             }
         }
 
-        if !cb.called {
+        if !any_frames {
             if let Some(name) = cx.object.search_symtab(addr as u64) {
-                cb.call(Symbol::Symtab {
+                call(Symbol::Symtab {
                     addr: addr as *mut c_void,
                     name,
                 });
             }
         }
     });
-
-    drop(cb);
-}
-
-struct DladdrFallback<'a, 'b> {
-    addr: *mut c_void,
-    called: bool,
-    cb: &'a mut (FnMut(&super::Symbol) + 'b),
-}
-
-impl DladdrFallback<'_, '_> {
-    fn call(&mut self, sym: Symbol) {
-        self.called = true;
-
-        // Extend the lifetime of `sym` to `'static` since we are unfortunately
-        // required to here, but it's ony ever going out as a reference so no
-        // reference to it should be persisted beyond this frame anyway.
-        let sym = unsafe { mem::transmute::<Symbol, Symbol<'static>>(sym) };
-        (self.cb)(&super::Symbol { inner: sym });
-    }
-}
-
-impl Drop for DladdrFallback<'_, '_> {
-    fn drop(&mut self) {
-        if self.called {
-            return;
-        }
-        unsafe {
-            dladdr::resolve(self.addr, &mut |sym| {
-                (self.cb)(&super::Symbol {
-                    inner: Symbol::Dladdr(sym),
-                })
-            });
-        }
-    }
 }
 
 pub enum Symbol<'a> {
@@ -717,15 +685,11 @@ pub enum Symbol<'a> {
     /// Couldn't find debug information, but we found it in the symbol table of
     /// the elf executable.
     Symtab { addr: *mut c_void, name: &'a [u8] },
-    /// We weren't able to find anything in the original file, so we had to fall
-    /// back to using `dladdr` which had a hit.
-    Dladdr(dladdr::Symbol<'a>),
 }
 
 impl Symbol<'_> {
     pub fn name(&self) -> Option<SymbolName> {
         match self {
-            Symbol::Dladdr(s) => s.name(),
             Symbol::Frame { name, .. } => {
                 let name = name.as_ref()?;
                 Some(SymbolName::new(name))
@@ -736,7 +700,6 @@ impl Symbol<'_> {
 
     pub fn addr(&self) -> Option<*mut c_void> {
         match self {
-            Symbol::Dladdr(s) => s.addr(),
             Symbol::Frame { addr, .. } => Some(*addr),
             Symbol::Symtab { .. } => None,
         }
@@ -744,7 +707,6 @@ impl Symbol<'_> {
 
     pub fn filename_raw(&self) -> Option<BytesOrWideString> {
         match self {
-            Symbol::Dladdr(s) => return s.filename_raw(),
             Symbol::Frame { location, .. } => {
                 let file = location.as_ref()?.file?;
                 Some(BytesOrWideString::Bytes(file.as_bytes()))
@@ -755,7 +717,6 @@ impl Symbol<'_> {
 
     pub fn filename(&self) -> Option<&Path> {
         match self {
-            Symbol::Dladdr(s) => return s.filename(),
             Symbol::Frame { location, .. } => {
                 let file = location.as_ref()?.file?;
                 Some(Path::new(file))
@@ -766,7 +727,6 @@ impl Symbol<'_> {
 
     pub fn lineno(&self) -> Option<u32> {
         match self {
-            Symbol::Dladdr(s) => return s.lineno(),
             Symbol::Frame { location, .. } => location.as_ref()?.line,
             Symbol::Symtab { .. } => None,
         }
