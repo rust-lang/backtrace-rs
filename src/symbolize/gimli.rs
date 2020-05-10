@@ -367,27 +367,82 @@ cfg_if::cfg_if! {
             // that we find. Additionally record information bout text segments
             // for processing later, see comments below.
             let mut segments = Vec::new();
+            let mut first_text = 0;
+            let mut text_fileoff_zero = false;
             while let Some(cmd) = load_commands.next().ok()? {
                 if let Some((seg, _)) = cmd.segment_32().ok()? {
+                    if seg.name() == b"__TEXT" {
+                        first_text = segments.len();
+                        if seg.fileoff(endian) == 0 && seg.filesize(endian) > 0 {
+                            text_fileoff_zero = true;
+                        }
+                    }
                     segments.push(LibrarySegment {
                         len: seg.vmsize(endian).try_into().ok()?,
-                        stated_virtual_memory_address: seg.vmaddr(endian) as *const u8,
+                        stated_virtual_memory_address: seg.vmaddr(endian).try_into().ok()?,
                     });
                 }
                 if let Some((seg, _)) = cmd.segment_64().ok()? {
+                    if seg.name() == b"__TEXT" {
+                        first_text = segments.len();
+                        if seg.fileoff(endian) == 0 && seg.filesize(endian) > 0 {
+                            text_fileoff_zero = true;
+                        }
+                    }
                     segments.push(LibrarySegment {
                         len: seg.vmsize(endian).try_into().ok()?,
-                        stated_virtual_memory_address: seg.vmaddr(endian) as *const u8,
+                        stated_virtual_memory_address: seg.vmaddr(endian).try_into().ok()?,
                     });
                 }
             }
-            let slide = unsafe {
-                libc::_dyld_get_image_vmaddr_slide(i)
-            };
+
+            // Determine the "slide" for this library which ends up being the
+            // bias we use to figure out where in memory objects are loaded.
+            // This is a bit of a weird computation though and is the result of
+            // trying a few things in the wild and seeing what sticks.
+            //
+            // The general idea is that the `bias` plus a segment's
+            // `stated_virtual_memory_address` is going to be where in the
+            // actual address space the segment resides. The other thing we rely
+            // on though is that a real address minus the `bias` is the index to
+            // look up in the symbol table and debuginfo.
+            //
+            // It turns out, though, that for system loaded libraries these
+            // calculations are incorrect. For native executables, however, it
+            // appears correct. Lifting some logic from LLDB's source it has
+            // some special-casing for the first `__TEXT` section loaded from
+            // file offset 0 with a nonzero size. For whatever reason when this
+            // is present it appears to mean that the symbol table is relative
+            // to just the vmaddr slide for the library. If it's *not* present
+            // then the symbol table is relative to the the vmaddr slide plus
+            // the segment's stated address.
+            //
+            // To handle this situation if we *don't* find a text section at
+            // file offset zero then we increase the bias by the first text
+            // sections's stated address and decrease all stated addresses by
+            // that amount as well. That way the symbol table is always appears
+            // relative to the library's bias amount. This appears to have the
+            // right results for symbolizing via the symbol table.
+            //
+            // Honestly I'm not entirely sure whether this is right or if
+            // there's something else that should indicate how to do this. For
+            // now though this seems to work well enough (?) and we should
+            // always be able to tweak this over time if necessary.
+            //
+            // For some more information see #318
+            let mut slide = unsafe { libc::_dyld_get_image_vmaddr_slide(i) as usize };
+            if !text_fileoff_zero {
+                let adjust = segments[first_text].stated_virtual_memory_address;
+                for segment in segments.iter_mut() {
+                    segment.stated_virtual_memory_address -= adjust;
+                }
+                slide += adjust;
+            }
+
             Some(Library {
                 name: OsStr::from_bytes(name.to_bytes()).to_owned(),
                 segments,
-                bias: slide as *const u8,
+                bias: slide,
             })
         }
     } else {
@@ -525,10 +580,10 @@ cfg_if::cfg_if! {
                     .iter()
                     .map(|header| LibrarySegment {
                         len: (*header).p_memsz as usize,
-                        stated_virtual_memory_address: (*header).p_vaddr as *const u8,
+                        stated_virtual_memory_address: (*header).p_vaddr as usize,
                     })
                     .collect(),
-                bias: (*info).dlpi_addr as *const u8,
+                bias: (*info).dlpi_addr as usize,
             });
             0
         }
@@ -622,13 +677,23 @@ struct Cache {
 
 struct Library {
     name: OsString,
+    /// Segments of this library loaded into memory, and where they're loaded.
     segments: Vec<LibrarySegment>,
-    bias: *const u8,
+    /// The "bias" of this library, typically where it's loaded into memory.
+    /// This value is added to each segment's stated address to get the actual
+    /// virtual memory address that the segment is loaded into. Additionally
+    /// this bias is subtracted from real virtual memory addresses to index into
+    /// debuginfo and the symbol table.
+    bias: usize,
 }
 
 struct LibrarySegment {
+    /// The stated address of this segment in the object file. This is not
+    /// actually where the segment is loaded, but rather this address plus the
+    /// containing library's `bias` is where to find it.
+    stated_virtual_memory_address: usize,
+    /// The size of ths segment in memory.
     len: usize,
-    stated_virtual_memory_address: *const u8,
 }
 
 // unsafe because this is required to be externally synchronized
