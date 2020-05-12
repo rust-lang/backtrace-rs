@@ -4,7 +4,6 @@ use backtrace::Frame;
 use std::thread;
 
 static LIBUNWIND: bool = cfg!(all(unix, feature = "libunwind"));
-static UNIX_BACKTRACE: bool = cfg!(all(unix, feature = "unix-backtrace"));
 static LIBBACKTRACE: bool = cfg!(feature = "libbacktrace") && !cfg!(target_os = "fuchsia");
 static DBGHELP: bool = cfg!(all(windows, feature = "dbghelp"));
 static MSVC: bool = cfg!(target_env = "msvc");
@@ -28,7 +27,6 @@ fn smoke_test_frames() {
 
         if v.len() < 5 {
             assert!(!LIBUNWIND);
-            assert!(!UNIX_BACKTRACE);
             assert!(!DBGHELP);
             return;
         }

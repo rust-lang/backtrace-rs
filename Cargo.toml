@@ -65,13 +65,9 @@ std = []
 # - libunwind: when using this the libgcc library is linked against to get
 #   the unwinding support. This is generally the most reliable method to get
 #   a backtrace on unix.
-# - unix-backtrace: this uses the backtrace(3) function to acquire a
-#   backtrace, but is not as reliable as libunwind. It is, however,
-#   generally found in more locations.
 # - dbghelp: on windows this enables usage of dbghelp.dll to find a
 #   backtrace at runtime
 libunwind = []
-unix-backtrace = []
 dbghelp = []
 
 #=======================================
@@ -105,6 +101,7 @@ serialize-serde = ["serde"]
 coresymbolication = []
 dladdr = []
 kernel32 = []
+unix-backtrace = []
 
 #=======================================
 # Internal features for testing and such.
