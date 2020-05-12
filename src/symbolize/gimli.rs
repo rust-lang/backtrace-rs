@@ -15,7 +15,6 @@ use core::convert::TryInto;
 use core::mem;
 use core::u32;
 use libc::c_void;
-use std::env;
 use std::ffi::OsString;
 use std::fs::File;
 use std::path::Path;
@@ -94,12 +93,30 @@ cfg_if::cfg_if! {
         // well enough for the main executable but seems pretty likely to not
         // work for loaded DLLs. For now this seems sufficient, but we may have
         // to extend this over time.
+        //
+        // Note that the native_libraries loading here simply returns one
+        // library encompassing the entire address space. This works naively
+        // but likely indicates something about ASLR is busted. Let's try to
+        // fix this over time if necessary!
 
         mod coff;
         use self::coff::Object;
 
         fn native_libraries() -> Vec<Library> {
-            Vec::new()
+            let mut ret = Vec::new();
+            if let Ok(path) = std::env::current_exe() {
+                let mut segments = Vec::new();
+                segments.push(LibrarySegment {
+                    stated_virtual_memory_address: 0,
+                    len: usize::max_value(),
+                });
+                ret.push(Library {
+                    name: path.into(),
+                    segments,
+                    bias: 0,
+                });
+            }
+            return ret;
         }
     } else if #[cfg(target_os = "macos")] {
         // macOS uses the Mach-O file format and uses DYLD-specific APIs to
@@ -371,16 +388,6 @@ impl Cache {
     }
 
     fn avma_to_svma(&self, addr: *const u8) -> Option<(usize, *const u8)> {
-        // Note that we don't implement iterating native libraries on Windows,
-        // so we just unhelpfully assume that the address is an SVMA.
-        // Surprisingly it seems to at least somewhat work on Wine on Linux
-        // though...
-        //
-        // This probably means ASLR on Windows is busted.
-        if cfg!(windows) {
-            return Some((usize::max_value(), addr));
-        }
-
         self.libraries
             .iter()
             .enumerate()
@@ -422,15 +429,8 @@ impl Cache {
             // When the mapping is not in the cache, create a new mapping,
             // insert it into the front of the cache, and evict the oldest cache
             // entry if necessary.
-            let storage;
-            let path = match self.libraries.get(lib) {
-                Some(lib) => &lib.name,
-                None => {
-                    storage = env::current_exe().ok()?.into();
-                    &storage
-                }
-            };
-            let mapping = Mapping::new(path.as_ref())?;
+            let name = &self.libraries[lib].name;
+            let mapping = Mapping::new(name.as_ref())?;
 
             if self.mappings.len() == MAPPINGS_CACHE_SIZE {
                 self.mappings.pop();
