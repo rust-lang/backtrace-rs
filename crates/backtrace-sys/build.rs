@@ -123,7 +123,7 @@ fn main() {
         "macho_file_to_host_u32",
         "macho_file_to_host_u16",
     ];
-    let prefix = if cfg!(feature = "rustc-dep-of-std") {
+    let prefix = if cfg!(feature = "rustc-dep-of-std-prefix") {
         println!("cargo:rustc-cfg=rdos");
         "__rdos_"
     } else {

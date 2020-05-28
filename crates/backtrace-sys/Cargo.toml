@@ -24,4 +24,8 @@ default = ["backtrace-sys"]
 
 # Without this feature, this crate does nothing.
 backtrace-sys = []
-rustc-dep-of-std = ['core', 'compiler_builtins']
+# Compile backtrace-sys for libstd
+rustc-dep-of-std = ['core', 'compiler_builtins', 'rustc-dep-of-std-prefix']
+# Change the prefix of the embedded libbacktrace symbols to something unique to
+# libstd, to avoid symbol conflicts between the sysroot and normal crates.
+rustc-dep-of-std-prefix = []
