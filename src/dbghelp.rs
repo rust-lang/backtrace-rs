@@ -73,6 +73,12 @@ mod dbghelp {
             pdwDisplacement: PDWORD,
             Line: PIMAGEHLP_LINEW64,
         ) -> BOOL;
+        pub fn SymGetSearchPathW(
+            hProcess: HANDLE,
+            SearchPath: PWSTR,
+            SearchPathLength: DWORD,
+        ) -> BOOL;
+        pub fn SymSetSearchPathW(hProcess: HANDLE, SearchPath: PCWSTR) -> BOOL;
     }
 
     pub fn assert_equal_types<T>(a: T, _b: T) -> T {
