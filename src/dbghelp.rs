@@ -241,11 +241,72 @@ dbghelp! {
             pdwDisplacement: PDWORD,
             Line: PIMAGEHLP_LINEW64
         ) -> BOOL;
+        fn SymGetSearchPathW(
+            hProcess: HANDLE,
+            SearchPath: PWSTR,
+            SearchPathLength: DWORD
+        ) -> BOOL;
+        fn SymSetSearchPathW(
+            hProcess: HANDLE,
+            SearchPath: PCWSTR
+        ) -> BOOL;
     }
 }
 
 pub struct Init {
     lock: HANDLE,
+}
+
+/// Try to add the running executables directory to the symbol search path
+fn configure_default_search_path() {
+    // This size if arbitrary. There is no way to query the length of the current search path.
+    // If it's not big enough we will early out and make no changes to it.
+    let mut search_path: [u16; 4096] = unsafe { mem::zeroed() };
+
+    // Get the current search path
+    // This will be ".;%_NT_SYMBOL_PATH%;%_NT_ALTERNATE_SYMBOL_PATH%"
+    unsafe {
+        if DBGHELP.SymGetSearchPathW().unwrap()(
+            GetCurrentProcess(),
+            search_path.as_mut_ptr(),
+            search_path.len() as u32,
+        ) == FALSE
+        {
+            return;
+        }
+    }
+
+    // find null terminator and replace it with a semi-colon
+    if let Some(search_len) = search_path.iter().position(|x| x == &0) {
+        search_path[search_len] = ';' as u16;
+
+        // create a sub-slice after the search path and write the current module path there
+        let module_path = &mut search_path[search_len + 1..];
+        let module_len = unsafe {
+            GetModuleFileNameW(
+                ptr::null_mut(),
+                module_path.as_mut_ptr(),
+                module_path.len() as u32,
+            ) as usize
+        };
+
+        // 0 return value means an error occured, >= to the size of the buffer means the buffer wasn't big enough
+        if module_len == 0 || module_len >= module_path.len() {
+            return;
+        }
+
+        // Find the last slash in the module path and replace with with a null terminator
+        if let Some(last_slash) = module_path[..module_len]
+            .iter()
+            .rposition(|x| *x == '\\' as u16)
+        {
+            module_path[last_slash] = 0;
+            // Now set the whole search path (default + ';' + module path)
+            unsafe {
+                DBGHELP.SymSetSearchPathW().unwrap()(GetCurrentProcess(), search_path.as_ptr())
+            };
+        }
+    }
 }
 
 /// Initialize all support necessary to access `dbghelp` API functions from this
@@ -354,6 +415,10 @@ pub fn init() -> Result<Init, ()> {
         // get to initialization first and the other will pick up that
         // initialization.
         DBGHELP.SymInitializeW().unwrap()(GetCurrentProcess(), ptr::null_mut(), TRUE);
+
+        // Configure the search path
+        configure_default_search_path();
+
         INITIALIZED = true;
         Ok(ret)
     }

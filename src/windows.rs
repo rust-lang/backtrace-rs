@@ -377,6 +377,7 @@ ffi! {
         pub fn RtlCaptureContext(ContextRecord: PCONTEXT) -> ();
         pub fn LoadLibraryA(a: *const i8) -> HMODULE;
         pub fn GetProcAddress(h: HMODULE, name: *const i8) -> FARPROC;
+        pub fn GetModuleFileNameW(h: HMODULE, lpFilename: PWSTR, nSize: DWORD) -> DWORD;
         pub fn GetModuleHandleA(name: *const i8) -> HMODULE;
         pub fn OpenProcess(
             dwDesiredAccess: DWORD,
