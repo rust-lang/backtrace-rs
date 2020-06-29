@@ -16,7 +16,7 @@ cfg-if = "0.1.10"
 rustc-demangle = "0.1.4"
 libc = { version = "0.2.45", default-features = false }
 addr2line = { version = "0.12.0", default-features = false }
-miniz_oxide = { version = "0.3.7" }
+miniz_oxide = { version = "0.4.0", default-features = false }
 
 [dependencies.object]
 version = "0.20.0"
