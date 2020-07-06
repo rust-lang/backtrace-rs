@@ -40,11 +40,14 @@ mod test {
             //println!("After invalid write");
 
             // Backtracing from a stack overflow crashes on macOS
-            panic!("{}", f(0xfffffff));
+            println!("Before stack overflow");
+            println!("{}", f(0xfffffff));
+            println!("After stack overflow");
         }
     }
 
     unsafe extern "C" fn trap_handler(_: libc::c_int) {
+        println!("Backtrace begin");
         let backtrace = Backtrace::new_unresolved();
         assert!(format!("{:?}", backtrace).len() > 0);
         println!("test result: ok");
