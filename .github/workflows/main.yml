@@ -61,6 +61,7 @@ jobs:
     - run: cargo build --manifest-path crates/backtrace-sys/Cargo.toml
     - run: cargo build
     - run: cargo test
+    - run: cargo test --release
     - run: cargo test --features "gimli-symbolize"
     - run: cargo test --features "libbacktrace"
     - run: cargo test --features "libbacktrace gimli-symbolize"
