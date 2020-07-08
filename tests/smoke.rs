@@ -5,6 +5,8 @@ static LIBBACKTRACE: bool = cfg!(feature = "libbacktrace") && !cfg!(target_os = 
 static GIMLI_SYMBOLIZE: bool = cfg!(all(feature = "gimli-symbolize", unix, target_os = "linux"));
 
 #[test]
+// FIXME: This test depends on debuginfo and runs only with debug builds.
+#[cfg(debug_assertions)]
 // FIXME: shouldn't ignore this test on i686-msvc, unsure why it's failing
 #[cfg_attr(all(target_arch = "x86", target_env = "msvc"), ignore)]
 #[rustfmt::skip] // we care about line numbers here

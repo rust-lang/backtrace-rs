@@ -15,6 +15,8 @@ macro_rules! check {
 type Pos = (&'static str, u32);
 
 #[test]
+// FIXME: This test depends on debuginfo and runs only with debug builds.
+#[cfg(debug_assertions)]
 fn doit() {
     if
     // Skip musl which is by default statically linked and doesn't support
