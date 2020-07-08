@@ -232,6 +232,8 @@ fn is_serde() {
 }
 
 #[test]
+// FIXME: This test depends on debuginfo and runs only with debug builds.
+#[cfg(debug_assertions)]
 fn sp_smoke_test() {
     let mut refs = vec![];
     recursive_stack_references(&mut refs);
