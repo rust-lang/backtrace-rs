@@ -467,6 +467,7 @@ cfg_if::cfg_if! {
         not(target_os = "fuchsia"),
         not(target_os = "emscripten"),
         not(target_env = "uclibc"),
+        not(target_env = "devkita64"),
     ))] {
         mod libbacktrace;
         use self::libbacktrace::resolve as resolve_imp;
@@ -476,6 +477,7 @@ cfg_if::cfg_if! {
         feature = "gimli-symbolize",
         any(unix, windows),
         not(target_os = "emscripten"),
+        not(target_env = "devkita64"),
     ))] {
         mod gimli;
         use self::gimli::resolve as resolve_imp;
