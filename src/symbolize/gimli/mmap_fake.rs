@@ -8,7 +8,7 @@ pub struct Mmap {
 
 impl Mmap {
     pub unsafe fn map(mut file: &File, len: usize) -> Option<Mmap> {
-        let mut mmap = Mmap { vec: Vec::new() };
+        let mut mmap = Mmap { vec: Vec::with_capacity(len) };
         file.read_to_end(&mut mmap.vec).ok()?;
         Some(mmap)
     }
