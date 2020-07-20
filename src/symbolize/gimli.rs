@@ -404,15 +404,16 @@ cfg_if::cfg_if! {
                 static __start__: u8;
             }
 
+            let bias = unsafe { &__start__ } as *const u8 as usize;
+
             let mut ret = Vec::new();
             let mut segments = Vec::new();
             segments.push(LibrarySegment {
                 stated_virtual_memory_address: 0,
-                len: usize::max_value(),
+                len: usize::max_value() - bias,
             });
 
             let path = "romfs:/debug_info.elf";
-            let bias = unsafe { &__start__ } as *const u8 as usize;
             ret.push(Library {
                 name: path.into(),
                 segments,
@@ -522,7 +523,7 @@ impl Cache {
                 if !lib.segments.iter().any(|s| {
                     let svma = s.stated_virtual_memory_address;
                     let start = svma.wrapping_add(lib.bias);
-                    let end = start.saturating_add(s.len);
+                    let end = start.wrapping_add(s.len);
                     let address = addr as usize;
                     start <= address && address < end
                 }) {
