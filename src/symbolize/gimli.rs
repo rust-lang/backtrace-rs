@@ -28,15 +28,19 @@ mod mystd {
 #[cfg(not(backtrace_in_libstd))]
 extern crate std as mystd;
 
-#[cfg(windows)]
-#[path = "gimli/mmap_windows.rs"]
-mod mmap;
-#[cfg(all(unix, not(target_env = "devkita64")))]
-#[path = "gimli/mmap_unix.rs"]
-mod mmap;
-#[cfg(target_env = "devkita64")]
-#[path = "gimli/mmap_fake.rs"]
-mod mmap;
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        #[path = "gimli/mmap_windows.rs"]
+        mod mmap;
+    } else if #[cfg(target_env = "devkita64")] {
+        #[path = "gimli/mmap_fake.rs"]
+        mod mmap;
+    } else {
+        #[path = "gimli/mmap_unix.rs"]
+        mod mmap;
+    }
+}
+
 mod stash;
 
 const MAPPINGS_CACHE_SIZE: usize = 4;

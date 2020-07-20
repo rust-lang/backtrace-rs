@@ -10,7 +10,6 @@ impl Mmap {
     pub unsafe fn map(mut file: &File, len: usize) -> Option<Mmap> {
         let mut mmap = Mmap { vec: Vec::new() };
         file.read_to_end(&mut mmap.vec).ok()?;
-        mmap.vec.truncate(len);
         Some(mmap)
     }
 }
