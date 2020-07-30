@@ -113,7 +113,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
             self.backtrace_symbol(frame, symbol)?;
         }
         if symbols.is_empty() {
-            self.print_raw(frame.ip(), None, None, None)?;
+            self.print_raw(frame.ip(), None, None, None, None)?;
         }
         Ok(())
     }
@@ -140,6 +140,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
                 .filename()
                 .and_then(|p| Some(BytesOrWideString::Bytes(p.to_str()?.as_bytes()))),
             symbol.lineno(),
+            symbol.colno(),
         )?;
         Ok(())
     }
@@ -152,6 +153,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
             symbol.name(),
             symbol.filename_raw(),
             symbol.lineno(),
+            symbol.colno(),
         )?;
         Ok(())
     }
@@ -167,6 +169,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         symbol_name: Option<SymbolName<'_>>,
         filename: Option<BytesOrWideString<'_>>,
         lineno: Option<u32>,
+        colno: Option<u32>,
     ) -> fmt::Result {
         // Fuchsia is unable to symbolize within a process so it has a special
         // format which can be used to symbolize later. Print that instead of
@@ -174,7 +177,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         if cfg!(target_os = "fuchsia") {
             self.print_raw_fuchsia(frame_ip)?;
         } else {
-            self.print_raw_generic(frame_ip, symbol_name, filename, lineno)?;
+            self.print_raw_generic(frame_ip, symbol_name, filename, lineno, colno)?;
         }
         self.symbol_index += 1;
         Ok(())
@@ -187,6 +190,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         symbol_name: Option<SymbolName<'_>>,
         filename: Option<BytesOrWideString<'_>>,
         lineno: Option<u32>,
+        colno: Option<u32>,
     ) -> fmt::Result {
         // No need to print "null" frames, it basically just means that the
         // system backtrace was a bit eager to trace back super far.
@@ -232,13 +236,13 @@ impl BacktraceFrameFmt<'_, '_, '_> {
 
         // And last up, print out the filename/line number if they're available.
         if let (Some(file), Some(line)) = (filename, lineno) {
-            self.print_fileline(file, line)?;
+            self.print_fileline(file, line, colno)?;
         }
 
         Ok(())
     }
 
-    fn print_fileline(&mut self, file: BytesOrWideString<'_>, line: u32) -> fmt::Result {
+    fn print_fileline(&mut self, file: BytesOrWideString<'_>, line: u32, colno: Option<u32>) -> fmt::Result {
         // Filename/line are printed on lines under the symbol name, so print
         // some appropriate whitespace to sort of right-align ourselves.
         if let PrintFmt::Full = self.fmt.format {
@@ -249,7 +253,14 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // Delegate to our internal callback to print the filename and then
         // print out the line number.
         (self.fmt.print_path)(self.fmt.fmt, file)?;
-        write!(self.fmt.fmt, ":{}\n", line)?;
+        write!(self.fmt.fmt, ":{}", line)?;
+
+        // Add column number, if available.
+        if let Some(colno) = colno {
+            write!(self.fmt.fmt, ":{}", colno)?;
+        }
+
+        write!(self.fmt.fmt, "\n")?;
         Ok(())
     }
 
