@@ -1,8 +1,36 @@
 use backtrace::Frame;
 use std::thread;
 
-static LIBBACKTRACE: bool = cfg!(feature = "libbacktrace") && !cfg!(target_os = "fuchsia");
-static GIMLI_SYMBOLIZE: bool = cfg!(all(feature = "gimli-symbolize", unix, target_os = "linux"));
+// Reflects the conditional compilation logic at end of src/symbolize/mod.rs
+static NOOP: bool = cfg!(miri);
+static DBGHELP: bool = !NOOP
+    && cfg!(all(
+        windows,
+        target_env = "msvc",
+        not(target_vendor = "uwp")
+    ));
+static LIBBACKTRACE: bool = !NOOP
+    && !DBGHELP
+    && cfg!(all(
+        feature = "libbacktrace",
+        any(
+            unix,
+            all(windows, not(target_vendor = "uwp"), target_env = "gnu")
+        ),
+        not(target_os = "fuchsia"),
+        not(target_os = "emscripten"),
+        not(target_env = "uclibc"),
+        not(target_env = "libnx"),
+    ));
+static GIMLI_SYMBOLIZE: bool = !NOOP
+    && !DBGHELP
+    && !LIBBACKTRACE
+    && cfg!(all(
+        feature = "gimli-symbolize",
+        any(unix, windows),
+        not(target_vendor = "uwp"),
+        not(target_os = "emscripten"),
+    ));
 
 #[test]
 // FIXME: shouldn't ignore this test on i686-msvc, unsure why it's failing
