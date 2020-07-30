@@ -242,7 +242,12 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         Ok(())
     }
 
-    fn print_fileline(&mut self, file: BytesOrWideString<'_>, line: u32, colno: Option<u32>) -> fmt::Result {
+    fn print_fileline(
+        &mut self,
+        file: BytesOrWideString<'_>,
+        line: u32,
+        colno: Option<u32>,
+    ) -> fmt::Result {
         // Filename/line are printed on lines under the symbol name, so print
         // some appropriate whitespace to sort of right-align ourselves.
         if let PrintFmt::Full = self.fmt.format {
