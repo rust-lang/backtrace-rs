@@ -113,7 +113,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
             self.backtrace_symbol(frame, symbol)?;
         }
         if symbols.is_empty() {
-            self.print_raw(frame.ip(), None, None, None, None)?;
+            self.print_raw(frame.ip(), None, None, None)?;
         }
         Ok(())
     }
@@ -130,7 +130,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         frame: &BacktraceFrame,
         symbol: &BacktraceSymbol,
     ) -> fmt::Result {
-        self.print_raw(
+        self.print_raw_with_column(
             frame.ip(),
             symbol.name(),
             // TODO: this isn't great that we don't end up printing anything
@@ -148,7 +148,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
     /// Prints a raw traced `Frame` and `Symbol`, typically from within the raw
     /// callbacks of this crate.
     pub fn symbol(&mut self, frame: &Frame, symbol: &super::Symbol) -> fmt::Result {
-        self.print_raw(
+        self.print_raw_with_column(
             frame.ip(),
             symbol.name(),
             symbol.filename_raw(),
@@ -164,6 +164,30 @@ impl BacktraceFrameFmt<'_, '_, '_> {
     /// they're being source from different locations. Note that this may be
     /// called multiple times for one frame.
     pub fn print_raw(
+        &mut self,
+        frame_ip: *mut c_void,
+        symbol_name: Option<SymbolName<'_>>,
+        filename: Option<BytesOrWideString<'_>>,
+        lineno: Option<u32>,
+    ) -> fmt::Result {
+        // Fuchsia is unable to symbolize within a process so it has a special
+        // format which can be used to symbolize later. Print that instead of
+        // printing addresses in our own format here.
+        if cfg!(target_os = "fuchsia") {
+            self.print_raw_fuchsia(frame_ip)?;
+        } else {
+            self.print_raw_generic(frame_ip, symbol_name, filename, lineno, None)?;
+        }
+        self.symbol_index += 1;
+        Ok(())
+    }
+
+    /// Adds a raw frame to the backtrace output, including column information.
+    ///
+    /// This method, like the previous, takes the raw arguments in case
+    /// they're being source from different locations. Note that this may be
+    /// called multiple times for one frame.
+    pub fn print_raw_with_column(
         &mut self,
         frame_ip: *mut c_void,
         symbol_name: Option<SymbolName<'_>>,
