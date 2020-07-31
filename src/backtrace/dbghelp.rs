@@ -141,6 +141,8 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
         }
     }
 
+    let process_handle = GetCurrentProcess();
+
     // Attempt to use `StackWalkEx` if we can, but fall back to `StackWalk64`
     // since it's in theory supported on more systems.
     match (*dbghelp.dbghelp()).StackWalkEx() {
@@ -170,8 +172,7 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
                 0,
             ) == TRUE
             {
-                frame.inner.base_address =
-                    get_module_base(GetCurrentProcess(), frame.ip() as _) as _;
+                frame.inner.base_address = get_module_base(process_handle, frame.ip() as _) as _;
 
                 if !cb(&frame) {
                     break;
@@ -203,8 +204,7 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
                 None,
             ) == TRUE
             {
-                frame.inner.base_address =
-                    get_module_base(GetCurrentProcess(), frame.ip() as _) as _;
+                frame.inner.base_address = get_module_base(process_handle, frame.ip() as _) as _;
 
                 if !cb(&frame) {
                     break;
