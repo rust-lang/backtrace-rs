@@ -32,7 +32,7 @@ cfg_if::cfg_if! {
     if #[cfg(windows)] {
         #[path = "gimli/mmap_windows.rs"]
         mod mmap;
-    } else if #[cfg(any(
+    } else if #[cfg(all(any(
         target_os = "android",
         target_os = "freebsd",
         target_os = "fuchsia",
@@ -41,6 +41,7 @@ cfg_if::cfg_if! {
         target_os = "macos",
         target_os = "openbsd",
         target_os = "solaris",
+    ), not(target_env = "uclibc")
     ))] {
         #[path = "gimli/mmap_unix.rs"]
         mod mmap;
@@ -350,9 +351,10 @@ cfg_if::cfg_if! {
                 bias: slide,
             })
         }
-    } else if #[cfg(any(
+    } else if #[cfg(all(any(
         target_os = "linux",
         target_os = "fuchsia",
+    ), not(target_env = "uclibc")
     ))] {
         // Other Unix (e.g. Linux) platforms use ELF as an object file format
         // and typically implement an API called `dl_iterate_phdr` to load
