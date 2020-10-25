@@ -358,6 +358,10 @@ cfg_if::cfg_if! {
     } else if #[cfg(any(
         target_os = "linux",
         target_os = "fuchsia",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly",
     ))] {
         // Other Unix (e.g. Linux) platforms use ELF as an object file format
         // and typically implement an API called `dl_iterate_phdr` to load
