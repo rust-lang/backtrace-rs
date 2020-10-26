@@ -208,7 +208,7 @@ cfg_if::cfg_if! {
         target_os = "watchos",
     ))] {
         // macOS uses the Mach-O file format and uses DYLD-specific APIs to
-        // load a list of native libraries that are part of the appplication.
+        // load a list of native libraries that are part of the application.
 
         use mystd::os::unix::prelude::*;
         use mystd::ffi::{OsStr, CStr};
