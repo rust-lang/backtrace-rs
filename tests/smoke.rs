@@ -34,6 +34,8 @@ static GIMLI_SYMBOLIZE: bool = !NOOP
 static MIRI_SYMBOLIZE: bool = cfg!(miri);
 
 #[test]
+// FIXME: This test depends on debuginfo and runs only with debug builds.
+#[cfg(debug_assertions)]
 // FIXME: shouldn't ignore this test on i686-msvc, unsure why it's failing
 #[cfg_attr(all(target_arch = "x86", target_env = "msvc"), ignore)]
 #[rustfmt::skip] // we care about line numbers here
@@ -284,6 +286,8 @@ fn is_serde() {
 }
 
 #[test]
+// FIXME: This test depends on debuginfo and runs only with debug builds.
+#[cfg(debug_assertions)]
 fn sp_smoke_test() {
     let mut refs = vec![];
     recursive_stack_references(&mut refs);

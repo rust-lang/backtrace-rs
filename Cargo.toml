@@ -133,3 +133,9 @@ edition = '2018'
 name = "concurrent-panics"
 required-features = ["std"]
 harness = false
+
+[[test]]
+name = "stack-overflow"
+required-features = ["std"]
+edition = '2018'
+harness = false

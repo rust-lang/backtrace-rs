@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        thing: [stable, beta, nightly, macos, windows-msvc64, windows-msvc32, windows-gnu64, windows-gnu32]
+        thing: [stable, beta, nightly, macos-stable, macos-beta, macos-nightly, windows-msvc64, windows-msvc32, windows-gnu64, windows-gnu32]
         include:
           - thing: stable
             os: ubuntu-latest
@@ -25,9 +25,15 @@ jobs:
           - thing: nightly
             os: ubuntu-latest
             rust: nightly
-          - thing: macos
+          - thing: macos-stable
             os: macos-latest
             rust: stable
+          - thing: macos-beta
+            os: macos-latest
+            rust: beta
+          - thing: macos-nightly
+            os: macos-latest
+            rust: nightly
           # Note that these are on nightly due to rust-lang/rust#63700 not being
           # on stable yet
           - thing: windows-msvc64
@@ -58,6 +64,7 @@ jobs:
     - run: cargo build --manifest-path crates/backtrace-sys/Cargo.toml
     - run: cargo build
     - run: cargo test
+    - run: cargo test --release
     - run: cargo test --features "gimli-symbolize"
     - run: cargo test --features "libbacktrace"
     - run: cargo test --features "libbacktrace gimli-symbolize"
