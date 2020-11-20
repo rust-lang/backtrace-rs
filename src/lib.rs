@@ -58,7 +58,10 @@
 extern crate std;
 
 // This is only used for gimli right now, so silence warnings elsewhere.
-#[cfg_attr(not(target_os = "linux"), allow(unused_extern_crates))]
+#[cfg_attr(
+    any(not(target_os = "linux"), not(feature = "gimli-symbolize")),
+    allow(unused_extern_crates)
+)]
 extern crate alloc;
 
 pub use self::backtrace::{trace_unsynchronized, Frame};
