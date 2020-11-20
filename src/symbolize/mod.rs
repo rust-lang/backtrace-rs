@@ -383,7 +383,7 @@ fn format_symbol_name(
 cfg_if::cfg_if! {
     if #[cfg(feature = "cpp_demangle")] {
         impl<'a> fmt::Display for SymbolName<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 if let Some(ref s) = self.demangled {
                     s.fmt(f)
                 } else if let Some(ref cpp) = self.cpp_demangled.0 {
@@ -409,7 +409,7 @@ cfg_if::cfg_if! {
 cfg_if::cfg_if! {
     if #[cfg(all(feature = "std", feature = "cpp_demangle"))] {
         impl<'a> fmt::Debug for SymbolName<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 use std::fmt::Write;
 
                 if let Some(ref s) = self.demangled {
