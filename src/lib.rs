@@ -52,6 +52,7 @@
 // When we're building as part of libstd, silence all warnings since they're
 // irrelevant as this crate is developed out-of-tree.
 #![cfg_attr(backtrace_in_libstd, allow(warnings))]
+#![cfg_attr(not(feature = "std"), allow(dead_code))]
 
 #[cfg(feature = "std")]
 #[macro_use]
