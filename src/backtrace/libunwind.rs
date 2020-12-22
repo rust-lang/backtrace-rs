@@ -142,6 +142,14 @@ mod uw {
     pub type _Unwind_Trace_Fn =
         extern "C" fn(ctx: *mut _Unwind_Context, arg: *mut c_void) -> _Unwind_Reason_Code;
 
+    cfg_if::cfg_if! {
+        if #[cfg(all(target_os = "linux", target_env = "uclibc"))] {
+            // required libraries in the Linux uClibc environment
+            #[link(name = "gcc_s")]
+            extern {}
+        }
+    }
+
     extern "C" {
         // No native _Unwind_Backtrace on iOS
         #[cfg(not(all(target_os = "ios", target_arch = "arm")))]
