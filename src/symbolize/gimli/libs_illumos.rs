@@ -2,6 +2,7 @@ use super::mystd::borrow::ToOwned;
 use super::mystd::ffi::{CStr, OsStr};
 use super::mystd::os::unix::prelude::*;
 use super::{Library, LibrarySegment, Vec};
+use core::mem;
 use object::NativeEndian;
 
 #[cfg(target_pointer_width = "64")]
@@ -36,7 +37,7 @@ pub(super) fn native_libraries() -> Vec<Library> {
 
     // Request the current link map from the runtime linker:
     let map = unsafe {
-        let mut map: *const LinkMap = std::mem::zeroed();
+        let mut map: *const LinkMap = mem::zeroed();
         if dlinfo(
             RTLD_SELF,
             RTLD_DI_LINKMAP,

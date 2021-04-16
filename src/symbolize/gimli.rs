@@ -167,8 +167,6 @@ cfg_if::cfg_if! {
         use libs_haiku::native_libraries;
     } else {
         // Everything else should doesn't know how to load native libraries.
-        use mystd::os::unix::prelude::*;
-
         fn native_libraries() -> Vec<Library> {
             Vec::new()
         }
