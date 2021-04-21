@@ -249,6 +249,15 @@ impl From<Vec<BacktraceFrame>> for Backtrace {
     }
 }
 
+impl From<crate::Frame> for BacktraceFrame {
+    fn from(frame: crate::Frame) -> BacktraceFrame {
+        BacktraceFrame {
+            frame: Frame::Raw(frame),
+            symbols: None,
+        }
+    }
+}
+
 impl Into<Vec<BacktraceFrame>> for Backtrace {
     fn into(self) -> Vec<BacktraceFrame> {
         self.frames
