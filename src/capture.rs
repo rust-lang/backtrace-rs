@@ -527,3 +527,42 @@ mod serde_impls {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_frame_conversion() {
+        // captures an original backtrace, and makes sure that the manual conversion
+        // to frames yields the same results.
+        let bt = Backtrace::new();
+        let original_frames = bt.frames();
+
+        let mut frames = vec![];
+        crate::trace(|frame| {
+            let converted = BacktraceFrame::from(frame.clone());
+            frames.push(converted);
+            true
+        });
+
+        // the first frames can be different because we call from slightly different places,
+        // and the `trace` version has an extra capture. But because of inlining the number of
+        // frames that differ may be different between release and debug versions. Plus who knows
+        // what the compiler will do in the future. So we just take 4 frames from the end and make
+        // sure they match
+        for (converted, og) in frames
+            .iter()
+            .rev()
+            .take(4)
+            .zip(original_frames.iter().rev().take(4))
+        {
+            println!(
+                "converted {:?}, og {:?}",
+                converted.symbol_address(),
+                og.symbol_address()
+            );
+            assert_eq!(converted.symbol_address(), og.symbol_address());
+        }
+    }
+}
