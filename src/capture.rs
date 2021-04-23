@@ -551,7 +551,6 @@ mod tests {
         manual.resolve();
         let frames = manual.frames();
 
-        let mut total_symbols = 0;
         // the first frames can be different because we call from slightly different places,
         // and the `trace` version has an extra capture. But because of inlining the number of
         // frames that differ may be different between release and debug versions. Plus who knows
@@ -574,7 +573,6 @@ mod tests {
 
             assert_eq!(og_symbols.len(), converted_symbols.len());
             for (os, cs) in og_symbols.iter().zip(converted_symbols.iter()) {
-                total_symbols += 1;
                 assert_eq!(
                     os.name().map(|x| x.as_bytes()),
                     cs.name().map(|x| x.as_bytes())
@@ -583,6 +581,5 @@ mod tests {
                 assert_eq!(os.lineno(), cs.lineno());
             }
         }
-        assert_ne!(total_symbols, 0);
     }
 }
