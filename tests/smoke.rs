@@ -178,15 +178,19 @@ fn smoke_test_frames() {
                     expected_line
                 );
             }
-            let col = col.expect("didn't find a column number");
-            if expected_col != 0 {
-                assert!(
-                    col == expected_col,
-                    "bad column number on frame for `{}`: {} != {}",
-                    expected_name,
-                    col,
-                    expected_col
-                );
+
+            // dbghelp on MSVC doesn't support column numbers
+            if !cfg!(target_env = "msvc") {
+                let col = col.expect("didn't find a column number");
+                if expected_col != 0 {
+                    assert!(
+                        col == expected_col,
+                        "bad column number on frame for `{}`: {} != {}",
+                        expected_name,
+                        col,
+                        expected_col
+                    );
+                }
             }
         }
     }
