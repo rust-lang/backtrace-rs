@@ -61,7 +61,11 @@ jobs:
     - run: cargo test --no-default-features
     - run: cargo test --no-default-features --features "std"
     - run: cargo test --manifest-path crates/cpp_smoke_test/Cargo.toml
+    # This test is specifically about packed debuginfo with `*.dSYM` files
     - run: cargo test --manifest-path crates/macos_frames_test/Cargo.toml
+      env:
+        CARGO_PROFILE_DEV_SPLIT_DEBUGINFO: packed
+        CARGO_PROFILE_TEST_SPLIT_DEBUGINFO: packed
     - run: cargo test --features gimli-symbolize --manifest-path crates/without_debuginfo/Cargo.toml
     - run: cargo test --manifest-path crates/line-tables-only/Cargo.toml --features gimli-symbolize
 
