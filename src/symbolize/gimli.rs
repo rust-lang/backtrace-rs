@@ -62,6 +62,7 @@ struct Mapping {
 }
 
 impl Mapping {
+    #[allow(dead_code)]
     fn mk<F>(data: Mmap, mk: F) -> Option<Mapping>
     where
         F: for<'a> Fn(&'a [u8], &'a Stash) -> Option<Context<'a>>,

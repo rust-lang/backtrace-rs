@@ -1,6 +1,11 @@
-use super::{Context, Mapping, Path, Stash, Vec};
-use core::convert::TryFrom;
-use object::elf::{ELFCOMPRESS_ZLIB, SHF_COMPRESSED};
+use super::mystd::ffi::OsStr;
+use super::mystd::fs;
+use super::mystd::os::unix::ffi::OsStrExt;
+use super::mystd::path::{Path, PathBuf};
+use super::{Context, Mapping, Stash, Vec};
+use core::convert::{TryFrom, TryInto};
+use core::str;
+use object::elf::{ELFCOMPRESS_ZLIB, ELF_NOTE_GNU, NT_GNU_BUILD_ID, SHF_COMPRESSED};
 use object::read::elf::{CompressionHeader, FileHeader, SectionHeader, SectionTable, Sym};
 use object::read::StringTable;
 use object::{BigEndian, Bytes, NativeEndian};
@@ -10,11 +15,118 @@ type Elf = object::elf::FileHeader32<NativeEndian>;
 #[cfg(target_pointer_width = "64")]
 type Elf = object::elf::FileHeader64<NativeEndian>;
 
+const BUILD_ID_PATH: &[u8] = b"/usr/lib/debug/.build-id/";
+const BUILD_ID_SUFFIX: &[u8] = b".debug";
+
 impl Mapping {
     pub fn new(path: &Path) -> Option<Mapping> {
         let map = super::mmap(path)?;
-        Mapping::mk(map, |data, stash| Context::new(stash, Object::parse(data)?))
+        let object = Object::parse(&map)?;
+
+        // Try to locate an external debug file using the build ID.
+        let build_id = object.build_id().unwrap_or(&[]);
+        if !build_id.is_empty() {
+            fn hex(byte: u8) -> u8 {
+                if byte < 10 {
+                    b'0' + byte
+                } else {
+                    b'a' + byte - 10
+                }
+            }
+            let mut path = Vec::with_capacity(
+                BUILD_ID_PATH.len() + BUILD_ID_SUFFIX.len() + build_id.len() * 2 + 1,
+            );
+            path.extend(BUILD_ID_PATH);
+            path.push(hex(build_id[0] >> 4));
+            path.push(hex(build_id[0] & 0xf));
+            path.push(b'/');
+            for byte in &build_id[1..] {
+                path.push(hex(byte >> 4));
+                path.push(hex(byte & 0xf));
+            }
+            path.extend(BUILD_ID_SUFFIX);
+            if let Some(mapping) = Mapping::new_debug(Path::new(OsStr::from_bytes(&path)), None) {
+                return Some(mapping);
+            }
+        }
+
+        // Try to locate an external debug file using the GNU debug link section.
+        let tmp_stash = Stash::new();
+        if let Some(section) = object.section(&tmp_stash, ".gnu_debuglink") {
+            if let Some(len) = section.iter().position(|x| *x == 0) {
+                let filename = &section[..len];
+                let offset = (len + 1 + 3) & !3;
+                if let Some(crc_bytes) = section
+                    .get(offset..offset + 4)
+                    .and_then(|bytes| bytes.try_into().ok())
+                {
+                    let crc = u32::from_ne_bytes(crc_bytes);
+                    if let Some(path_debug) = locate_debuglink(path, filename) {
+                        if let Some(mapping) = Mapping::new_debug(&path_debug, Some(crc)) {
+                            return Some(mapping);
+                        }
+                    }
+                }
+            }
+        }
+
+        let stash = Stash::new();
+        let cx = Context::new(&stash, object)?;
+        Some(Mapping {
+            // Convert to 'static lifetimes since the symbols should
+            // only borrow `map` and `stash` and we're preserving them below.
+            cx: unsafe { core::mem::transmute::<Context<'_>, Context<'static>>(cx) },
+            _map: map,
+            _stash: stash,
+        })
     }
+
+    /// Load debuginfo from an external debug file.
+    fn new_debug(path: &Path, crc: Option<u32>) -> Option<Mapping> {
+        let map = super::mmap(path)?;
+        let object = Object::parse(&map)?;
+
+        if let Some(_crc) = crc {
+            // TODO: check crc
+        }
+
+        let stash = Stash::new();
+        let cx = Context::new(&stash, object)?;
+        Some(Mapping {
+            // Convert to 'static lifetimes since the symbols should
+            // only borrow `map` and `stash` and we're preserving them below.
+            cx: unsafe { core::mem::transmute::<Context<'_>, Context<'static>>(cx) },
+            _map: map,
+            _stash: stash,
+        })
+    }
+}
+
+fn locate_debuglink(path: &Path, filename: &[u8]) -> Option<PathBuf> {
+    let path = fs::canonicalize(path).ok()?;
+    let parent = path.parent()?;
+    let filename = Path::new(OsStr::from_bytes(filename));
+
+    // Try "/parent/filename" if it differs from "path"
+    let f = parent.join(filename);
+    if f != path && f.is_file() {
+        return Some(f);
+    }
+
+    // Try "/parent/.debug/filename"
+    let f = parent.join(".debug").join(filename);
+    if f.is_file() {
+        return Some(f);
+    }
+
+    // Try "/usr/lib/debug/parent/filename"
+    let parent = parent.strip_prefix("/").unwrap();
+    let f = Path::new("/usr/lib/debug").join(parent).join(filename);
+    if f.is_file() {
+        return Some(f);
+    }
+
+    None
 }
 
 struct ParsedSym {
@@ -161,6 +273,19 @@ impl<'a> Object<'a> {
     }
 
     pub(super) fn search_object_map(&self, _addr: u64) -> Option<(&Context<'_>, u64)> {
+        None
+    }
+
+    fn build_id(&self) -> Option<&'a [u8]> {
+        for section in self.sections.iter() {
+            if let Ok(Some(mut notes)) = section.notes(self.endian, self.data) {
+                while let Ok(Some(note)) = notes.next() {
+                    if note.name() == ELF_NOTE_GNU && note.n_type(self.endian) == NT_GNU_BUILD_ID {
+                        return Some(note.desc());
+                    }
+                }
+            }
+        }
         None
     }
 }
