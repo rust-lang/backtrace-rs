@@ -77,6 +77,7 @@ impl Mapping {
             // only borrow `map` and `stash` and we're preserving them below.
             cx: unsafe { core::mem::transmute::<Context<'_>, Context<'static>>(cx) },
             _map: map,
+            _map_sup: None,
             _stash: stash,
         })
     }
@@ -90,6 +91,36 @@ impl Mapping {
             // TODO: check crc
         }
 
+        // Try to locate a supplementary object file.
+        let tmp_stash = Stash::new();
+        if let Some(section) = object.section(&tmp_stash, ".gnu_debugaltlink") {
+            if let Some(len) = section.iter().position(|x| *x == 0) {
+                let filename = &section[..len];
+                let build_id_sup = &section[len + 1..];
+                if let Some(path_sup) = locate_debuglink(path, filename) {
+                    if let Some(map_sup) = super::mmap(&path_sup) {
+                        if let Some(sup) = Object::parse(&map_sup) {
+                            if sup.build_id() == Some(build_id_sup) {
+                                let stash = Stash::new();
+                                let cx = Context::new_sup(&stash, object, sup)?;
+                                return Some(Mapping {
+                                    // Convert to 'static lifetimes since the symbols should
+                                    // only borrow `map`, `map_sup`, and `stash` and we're
+                                    // preserving them below.
+                                    cx: unsafe {
+                                        core::mem::transmute::<Context<'_>, Context<'static>>(cx)
+                                    },
+                                    _map: map,
+                                    _map_sup: Some(map_sup),
+                                    _stash: stash,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let stash = Stash::new();
         let cx = Context::new(&stash, object)?;
         Some(Mapping {
@@ -97,6 +128,7 @@ impl Mapping {
             // only borrow `map` and `stash` and we're preserving them below.
             cx: unsafe { core::mem::transmute::<Context<'_>, Context<'static>>(cx) },
             _map: map,
+            _map_sup: None,
             _stash: stash,
         })
     }

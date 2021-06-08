@@ -58,6 +58,7 @@ struct Mapping {
     // 'static lifetime is a lie to hack around lack of support for self-referential structs.
     cx: Context<'static>,
     _map: Mmap,
+    _map_sup: Option<Mmap>,
     _stash: Stash,
 }
 
@@ -74,6 +75,7 @@ impl Mapping {
             // only borrow `map` and `stash` and we're preserving them below.
             cx: unsafe { core::mem::transmute::<Context<'_>, Context<'static>>(cx) },
             _map: data,
+            _map_sup: None,
             _stash: stash,
         })
     }
@@ -93,6 +95,27 @@ impl<'data> Context<'data> {
         .ok()?;
         let dwarf = addr2line::Context::from_dwarf(sections).ok()?;
 
+        Some(Context { dwarf, object })
+    }
+
+    #[allow(dead_code)]
+    fn new_sup(
+        stash: &'data Stash,
+        object: Object<'data>,
+        sup: Object<'data>,
+    ) -> Option<Context<'data>> {
+        let mut sections = gimli::Dwarf::load(|id| -> Result<_, ()> {
+            let data = object.section(stash, id.name()).unwrap_or(&[]);
+            Ok(EndianSlice::new(data, Endian))
+        })
+        .ok()?;
+        sections
+            .load_sup(|id| -> Result<_, ()> {
+                let data = sup.section(stash, id.name()).unwrap_or(&[]);
+                Ok(EndianSlice::new(data, Endian))
+            })
+            .ok()?;
+        let dwarf = addr2line::Context::from_dwarf(sections).ok()?;
         Some(Context { dwarf, object })
     }
 }
