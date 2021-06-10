@@ -251,6 +251,8 @@ impl<'a> Object<'a> {
         None
     }
 
+    // The format of build id paths is documented at:
+    // https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
     fn build_id_debug_path(&self) -> Option<PathBuf> {
         const BUILD_ID_PATH: &[u8] = b"/usr/lib/debug/.build-id/";
         const BUILD_ID_SUFFIX: &[u8] = b".debug";
@@ -283,6 +285,8 @@ impl<'a> Object<'a> {
         Some(PathBuf::from(OsString::from_vec(path)))
     }
 
+    // The contents of the ".gnu_debuglink" section is documented at:
+    // https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
     fn gnu_debuglink_path(&self, path: &Path) -> Option<(PathBuf, u32)> {
         let section = self.section_header(".gnu_debuglink")?;
         let data = section.data(self.endian, self.data).ok()?;
@@ -297,6 +301,7 @@ impl<'a> Object<'a> {
         Some((path_debug, crc))
     }
 
+    // The format if the ".gnu_debugaltlink" section is based on gdb.
     fn gnu_debugaltlink_path(&self, path: &Path) -> Option<(PathBuf, &'a [u8])> {
         let section = self.section_header(".gnu_debugaltlink")?;
         let data = section.data(self.endian, self.data).ok()?;
@@ -329,6 +334,8 @@ fn decompress_zlib(input: &[u8], output: &mut [u8]) -> Option<()> {
     }
 }
 
+// Search order matches gdb, documented at:
+// https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
 fn locate_debuglink(path: &Path, filename: &[u8]) -> Option<PathBuf> {
     const DEBUG_PATH: &[u8] = b"/usr/lib/debug";
     let path = fs::canonicalize(path).ok()?;
