@@ -1,6 +1,6 @@
-use super::mystd::ffi::OsStr;
+use super::mystd::ffi::{OsStr, OsString};
 use super::mystd::fs;
-use super::mystd::os::unix::ffi::OsStrExt;
+use super::mystd::os::unix::ffi::{OsStrExt, OsStringExt};
 use super::mystd::path::{Path, PathBuf};
 use super::{Context, Mapping, Stash, Vec};
 use core::convert::{TryFrom, TryInto};
@@ -15,58 +15,22 @@ type Elf = object::elf::FileHeader32<NativeEndian>;
 #[cfg(target_pointer_width = "64")]
 type Elf = object::elf::FileHeader64<NativeEndian>;
 
-const BUILD_ID_PATH: &[u8] = b"/usr/lib/debug/.build-id/";
-const BUILD_ID_SUFFIX: &[u8] = b".debug";
-
 impl Mapping {
     pub fn new(path: &Path) -> Option<Mapping> {
         let map = super::mmap(path)?;
         let object = Object::parse(&map)?;
 
         // Try to locate an external debug file using the build ID.
-        let build_id = object.build_id().unwrap_or(&[]);
-        if !build_id.is_empty() {
-            fn hex(byte: u8) -> u8 {
-                if byte < 10 {
-                    b'0' + byte
-                } else {
-                    b'a' + byte - 10
-                }
-            }
-            let mut path = Vec::with_capacity(
-                BUILD_ID_PATH.len() + BUILD_ID_SUFFIX.len() + build_id.len() * 2 + 1,
-            );
-            path.extend(BUILD_ID_PATH);
-            path.push(hex(build_id[0] >> 4));
-            path.push(hex(build_id[0] & 0xf));
-            path.push(b'/');
-            for byte in &build_id[1..] {
-                path.push(hex(byte >> 4));
-                path.push(hex(byte & 0xf));
-            }
-            path.extend(BUILD_ID_SUFFIX);
-            if let Some(mapping) = Mapping::new_debug(Path::new(OsStr::from_bytes(&path)), None) {
+        if let Some(path_debug) = object.build_id_debug_path() {
+            if let Some(mapping) = Mapping::new_debug(path_debug, None) {
                 return Some(mapping);
             }
         }
 
         // Try to locate an external debug file using the GNU debug link section.
-        let tmp_stash = Stash::new();
-        if let Some(section) = object.section(&tmp_stash, ".gnu_debuglink") {
-            if let Some(len) = section.iter().position(|x| *x == 0) {
-                let filename = &section[..len];
-                let offset = (len + 1 + 3) & !3;
-                if let Some(crc_bytes) = section
-                    .get(offset..offset + 4)
-                    .and_then(|bytes| bytes.try_into().ok())
-                {
-                    let crc = u32::from_ne_bytes(crc_bytes);
-                    if let Some(path_debug) = locate_debuglink(path, filename) {
-                        if let Some(mapping) = Mapping::new_debug(&path_debug, Some(crc)) {
-                            return Some(mapping);
-                        }
-                    }
-                }
+        if let Some((path_debug, crc)) = object.gnu_debuglink_path(path) {
+            if let Some(mapping) = Mapping::new_debug(path_debug, Some(crc)) {
+                return Some(mapping);
             }
         }
 
@@ -83,8 +47,8 @@ impl Mapping {
     }
 
     /// Load debuginfo from an external debug file.
-    fn new_debug(path: &Path, crc: Option<u32>) -> Option<Mapping> {
-        let map = super::mmap(path)?;
+    fn new_debug(path: PathBuf, crc: Option<u32>) -> Option<Mapping> {
+        let map = super::mmap(&path)?;
         let object = Object::parse(&map)?;
 
         if let Some(_crc) = crc {
@@ -92,30 +56,23 @@ impl Mapping {
         }
 
         // Try to locate a supplementary object file.
-        let tmp_stash = Stash::new();
-        if let Some(section) = object.section(&tmp_stash, ".gnu_debugaltlink") {
-            if let Some(len) = section.iter().position(|x| *x == 0) {
-                let filename = &section[..len];
-                let build_id_sup = &section[len + 1..];
-                if let Some(path_sup) = locate_debuglink(path, filename) {
-                    if let Some(map_sup) = super::mmap(&path_sup) {
-                        if let Some(sup) = Object::parse(&map_sup) {
-                            if sup.build_id() == Some(build_id_sup) {
-                                let stash = Stash::new();
-                                let cx = Context::new(&stash, object, Some(sup))?;
-                                return Some(Mapping {
-                                    // Convert to 'static lifetimes since the symbols should
-                                    // only borrow `map`, `map_sup`, and `stash` and we're
-                                    // preserving them below.
-                                    cx: unsafe {
-                                        core::mem::transmute::<Context<'_>, Context<'static>>(cx)
-                                    },
-                                    _map: map,
-                                    _map_sup: Some(map_sup),
-                                    _stash: stash,
-                                });
-                            }
-                        }
+        if let Some((path_sup, build_id_sup)) = object.gnu_debugaltlink_path(&path) {
+            if let Some(map_sup) = super::mmap(&path_sup) {
+                if let Some(sup) = Object::parse(&map_sup) {
+                    if sup.build_id() == Some(build_id_sup) {
+                        let stash = Stash::new();
+                        let cx = Context::new(&stash, object, Some(sup))?;
+                        return Some(Mapping {
+                            // Convert to 'static lifetimes since the symbols should
+                            // only borrow `map`, `map_sup`, and `stash` and we're
+                            // preserving them below.
+                            cx: unsafe {
+                                core::mem::transmute::<Context<'_>, Context<'static>>(cx)
+                            },
+                            _map: map,
+                            _map_sup: Some(map_sup),
+                            _stash: stash,
+                        });
                     }
                 }
             }
@@ -132,33 +89,6 @@ impl Mapping {
             _stash: stash,
         })
     }
-}
-
-fn locate_debuglink(path: &Path, filename: &[u8]) -> Option<PathBuf> {
-    let path = fs::canonicalize(path).ok()?;
-    let parent = path.parent()?;
-    let filename = Path::new(OsStr::from_bytes(filename));
-
-    // Try "/parent/filename" if it differs from "path"
-    let f = parent.join(filename);
-    if f != path && f.is_file() {
-        return Some(f);
-    }
-
-    // Try "/parent/.debug/filename"
-    let f = parent.join(".debug").join(filename);
-    if f.is_file() {
-        return Some(f);
-    }
-
-    // Try "/usr/lib/debug/parent/filename"
-    let parent = parent.strip_prefix("/").unwrap();
-    let f = Path::new("/usr/lib/debug").join(parent).join(filename);
-    if f.is_file() {
-        return Some(f);
-    }
-
-    None
 }
 
 struct ParsedSym {
@@ -320,6 +250,62 @@ impl<'a> Object<'a> {
         }
         None
     }
+
+    fn build_id_debug_path(&self) -> Option<PathBuf> {
+        const BUILD_ID_PATH: &[u8] = b"/usr/lib/debug/.build-id/";
+        const BUILD_ID_SUFFIX: &[u8] = b".debug";
+
+        let build_id = self.build_id()?;
+        if build_id.len() < 2 {
+            return None;
+        }
+
+        fn hex(byte: u8) -> u8 {
+            if byte < 10 {
+                b'0' + byte
+            } else {
+                b'a' + byte - 10
+            }
+        }
+
+        let mut path = Vec::with_capacity(
+            BUILD_ID_PATH.len() + BUILD_ID_SUFFIX.len() + build_id.len() * 2 + 1,
+        );
+        path.extend(BUILD_ID_PATH);
+        path.push(hex(build_id[0] >> 4));
+        path.push(hex(build_id[0] & 0xf));
+        path.push(b'/');
+        for byte in &build_id[1..] {
+            path.push(hex(byte >> 4));
+            path.push(hex(byte & 0xf));
+        }
+        path.extend(BUILD_ID_SUFFIX);
+        Some(PathBuf::from(OsString::from_vec(path)))
+    }
+
+    fn gnu_debuglink_path(&self, path: &Path) -> Option<(PathBuf, u32)> {
+        let section = self.section_header(".gnu_debuglink")?;
+        let data = section.data(self.endian, self.data).ok()?;
+        let len = data.iter().position(|x| *x == 0)?;
+        let filename = &data[..len];
+        let offset = (len + 1 + 3) & !3;
+        let crc_bytes = data
+            .get(offset..offset + 4)
+            .and_then(|bytes| bytes.try_into().ok())?;
+        let crc = u32::from_ne_bytes(crc_bytes);
+        let path_debug = locate_debuglink(path, filename)?;
+        Some((path_debug, crc))
+    }
+
+    fn gnu_debugaltlink_path(&self, path: &Path) -> Option<(PathBuf, &'a [u8])> {
+        let section = self.section_header(".gnu_debugaltlink")?;
+        let data = section.data(self.endian, self.data).ok()?;
+        let len = data.iter().position(|x| *x == 0)?;
+        let filename = &data[..len];
+        let build_id = &data[len + 1..];
+        let path_sup = locate_debuglink(path, filename)?;
+        Some((path_sup, build_id))
+    }
 }
 
 fn decompress_zlib(input: &[u8], output: &mut [u8]) -> Option<()> {
@@ -341,4 +327,46 @@ fn decompress_zlib(input: &[u8], output: &mut [u8]) -> Option<()> {
     } else {
         None
     }
+}
+
+fn locate_debuglink(path: &Path, filename: &[u8]) -> Option<PathBuf> {
+    const DEBUG_PATH: &[u8] = b"/usr/lib/debug";
+    let path = fs::canonicalize(path).ok()?;
+    let parent = path.parent()?;
+    let mut f = PathBuf::from(OsString::with_capacity(
+        DEBUG_PATH.len() + parent.as_os_str().len() + filename.len() + 2,
+    ));
+    let filename = Path::new(OsStr::from_bytes(filename));
+
+    // Try "/parent/filename" if it differs from "path"
+    f.push(parent);
+    f.push(filename);
+    if f != path && f.is_file() {
+        return Some(f);
+    }
+
+    // Try "/parent/.debug/filename"
+    let mut s = OsString::from(f);
+    s.clear();
+    f = PathBuf::from(s);
+    f.push(parent);
+    f.push(".debug");
+    f.push(filename);
+    if f.is_file() {
+        return Some(f);
+    }
+
+    // Try "/usr/lib/debug/parent/filename"
+    let mut s = OsString::from(f);
+    s.clear();
+    f = PathBuf::from(s);
+    f.clear();
+    f.push(OsStr::from_bytes(DEBUG_PATH));
+    f.push(parent.strip_prefix("/").unwrap());
+    f.push(filename);
+    if f.is_file() {
+        return Some(f);
+    }
+
+    None
 }
