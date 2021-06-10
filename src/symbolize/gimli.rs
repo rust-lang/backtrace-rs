@@ -87,35 +87,27 @@ struct Context<'a> {
 }
 
 impl<'data> Context<'data> {
-    fn new(stash: &'data Stash, object: Object<'data>) -> Option<Context<'data>> {
-        let sections = gimli::Dwarf::load(|id| -> Result<_, ()> {
-            let data = object.section(stash, id.name()).unwrap_or(&[]);
-            Ok(EndianSlice::new(data, Endian))
-        })
-        .ok()?;
-        let dwarf = addr2line::Context::from_dwarf(sections).ok()?;
-
-        Some(Context { dwarf, object })
-    }
-
-    #[allow(dead_code)]
-    fn new_sup(
+    fn new(
         stash: &'data Stash,
         object: Object<'data>,
-        sup: Object<'data>,
+        sup: Option<Object<'data>>,
     ) -> Option<Context<'data>> {
         let mut sections = gimli::Dwarf::load(|id| -> Result<_, ()> {
             let data = object.section(stash, id.name()).unwrap_or(&[]);
             Ok(EndianSlice::new(data, Endian))
         })
         .ok()?;
-        sections
-            .load_sup(|id| -> Result<_, ()> {
-                let data = sup.section(stash, id.name()).unwrap_or(&[]);
-                Ok(EndianSlice::new(data, Endian))
-            })
-            .ok()?;
+
+        if let Some(sup) = sup {
+            sections
+                .load_sup(|id| -> Result<_, ()> {
+                    let data = sup.section(stash, id.name()).unwrap_or(&[]);
+                    Ok(EndianSlice::new(data, Endian))
+                })
+                .ok()?;
+        }
         let dwarf = addr2line::Context::from_dwarf(sections).ok()?;
+
         Some(Context { dwarf, object })
     }
 }

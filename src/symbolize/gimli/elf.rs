@@ -71,7 +71,7 @@ impl Mapping {
         }
 
         let stash = Stash::new();
-        let cx = Context::new(&stash, object)?;
+        let cx = Context::new(&stash, object, None)?;
         Some(Mapping {
             // Convert to 'static lifetimes since the symbols should
             // only borrow `map` and `stash` and we're preserving them below.
@@ -102,7 +102,7 @@ impl Mapping {
                         if let Some(sup) = Object::parse(&map_sup) {
                             if sup.build_id() == Some(build_id_sup) {
                                 let stash = Stash::new();
-                                let cx = Context::new_sup(&stash, object, sup)?;
+                                let cx = Context::new(&stash, object, Some(sup))?;
                                 return Some(Mapping {
                                     // Convert to 'static lifetimes since the symbols should
                                     // only borrow `map`, `map_sup`, and `stash` and we're
@@ -122,7 +122,7 @@ impl Mapping {
         }
 
         let stash = Stash::new();
-        let cx = Context::new(&stash, object)?;
+        let cx = Context::new(&stash, object, None)?;
         Some(Mapping {
             // Convert to 'static lifetimes since the symbols should
             // only borrow `map` and `stash` and we're preserving them below.
