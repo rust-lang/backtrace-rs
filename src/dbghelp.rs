@@ -158,7 +158,7 @@ const SYMOPT_DEFERRED_LOADS: DWORD = 0x00000004;
 dbghelp! {
     extern "system" {
         fn SymGetOptions() -> DWORD;
-        fn SymSetOptions(options: DWORD) -> ();
+        fn SymSetOptions(options: DWORD) -> DWORD;
         fn SymInitializeW(
             handle: HANDLE,
             path: PCWSTR,
