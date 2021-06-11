@@ -21,7 +21,7 @@ impl Mapping {
         let object = Object::parse(&map)?;
 
         // Try to locate an external debug file using the build ID.
-        if let Some(path_debug) = object.build_id_debug_path() {
+        if let Some(path_debug) = object.build_id().and_then(locate_build_id) {
             if let Some(mapping) = Mapping::new_debug(path_debug, None) {
                 return Some(mapping);
             }
@@ -251,44 +251,6 @@ impl<'a> Object<'a> {
         None
     }
 
-    // The format of build id paths is documented at:
-    // https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
-    fn build_id_debug_path(&self) -> Option<PathBuf> {
-        const BUILD_ID_PATH: &[u8] = b"/usr/lib/debug/.build-id/";
-        const BUILD_ID_SUFFIX: &[u8] = b".debug";
-
-        if !debug_path_exists() {
-            return None;
-        }
-
-        let build_id = self.build_id()?;
-        if build_id.len() < 2 {
-            return None;
-        }
-
-        fn hex(byte: u8) -> u8 {
-            if byte < 10 {
-                b'0' + byte
-            } else {
-                b'a' + byte - 10
-            }
-        }
-
-        let mut path = Vec::with_capacity(
-            BUILD_ID_PATH.len() + BUILD_ID_SUFFIX.len() + build_id.len() * 2 + 1,
-        );
-        path.extend(BUILD_ID_PATH);
-        path.push(hex(build_id[0] >> 4));
-        path.push(hex(build_id[0] & 0xf));
-        path.push(b'/');
-        for byte in &build_id[1..] {
-            path.push(hex(byte >> 4));
-            path.push(hex(byte & 0xf));
-        }
-        path.extend(BUILD_ID_SUFFIX);
-        Some(PathBuf::from(OsString::from_vec(path)))
-    }
-
     // The contents of the ".gnu_debuglink" section is documented at:
     // https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
     fn gnu_debuglink_path(&self, path: &Path) -> Option<(PathBuf, u32)> {
@@ -305,14 +267,14 @@ impl<'a> Object<'a> {
         Some((path_debug, crc))
     }
 
-    // The format if the ".gnu_debugaltlink" section is based on gdb.
+    // The format of the ".gnu_debugaltlink" section is based on gdb.
     fn gnu_debugaltlink_path(&self, path: &Path) -> Option<(PathBuf, &'a [u8])> {
         let section = self.section_header(".gnu_debugaltlink")?;
         let data = section.data(self.endian, self.data).ok()?;
         let len = data.iter().position(|x| *x == 0)?;
         let filename = &data[..len];
         let build_id = &data[len + 1..];
-        let path_sup = locate_debuglink(path, filename)?;
+        let path_sup = locate_debugaltlink(path, filename, build_id)?;
         Some((path_sup, build_id))
     }
 }
@@ -362,8 +324,55 @@ fn debug_path_exists() -> bool {
     }
 }
 
-// Search order matches gdb, documented at:
-// https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
+/// Locate a debug file based on its build ID.
+///
+/// The format of build id paths is documented at:
+/// https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
+fn locate_build_id(build_id: &[u8]) -> Option<PathBuf> {
+    const BUILD_ID_PATH: &[u8] = b"/usr/lib/debug/.build-id/";
+    const BUILD_ID_SUFFIX: &[u8] = b".debug";
+
+    if build_id.len() < 2 {
+        return None;
+    }
+
+    if !debug_path_exists() {
+        return None;
+    }
+
+    let mut path =
+        Vec::with_capacity(BUILD_ID_PATH.len() + BUILD_ID_SUFFIX.len() + build_id.len() * 2 + 1);
+    path.extend(BUILD_ID_PATH);
+    path.push(hex(build_id[0] >> 4));
+    path.push(hex(build_id[0] & 0xf));
+    path.push(b'/');
+    for byte in &build_id[1..] {
+        path.push(hex(byte >> 4));
+        path.push(hex(byte & 0xf));
+    }
+    path.extend(BUILD_ID_SUFFIX);
+    Some(PathBuf::from(OsString::from_vec(path)))
+}
+
+fn hex(byte: u8) -> u8 {
+    if byte < 10 {
+        b'0' + byte
+    } else {
+        b'a' + byte - 10
+    }
+}
+
+/// Locate a file specified in a `.gnu_debuglink` section.
+///
+/// `path` is the file containing the section.
+/// `filename` is from the contents of the section.
+///
+/// Search order is based on gdb, documented at:
+/// https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
+///
+/// gdb also allows the user to customize the debug search path, but we don't.
+///
+/// gdb also supports debuginfod, but we don't yet.
 fn locate_debuglink(path: &Path, filename: &[u8]) -> Option<PathBuf> {
     let path = fs::canonicalize(path).ok()?;
     let parent = path.parent()?;
@@ -404,4 +413,33 @@ fn locate_debuglink(path: &Path, filename: &[u8]) -> Option<PathBuf> {
     }
 
     None
+}
+
+/// Locate a file specified in a `.gnu_debugaltlink` section.
+///
+/// `path` is the file containing the section.
+/// `filename` and `build_id` are the contents of the section.
+///
+/// Search order is based on gdb:
+/// - filename, which is either absolute or relative to `path`
+/// - the build ID path under `BUILD_ID_PATH`
+///
+/// gdb also allows the user to customize the debug search path, but we don't.
+///
+/// gdb also supports debuginfod, but we don't yet.
+fn locate_debugaltlink(path: &Path, filename: &[u8], build_id: &[u8]) -> Option<PathBuf> {
+    let filename = Path::new(OsStr::from_bytes(filename));
+    if filename.is_absolute() {
+        if filename.is_file() {
+            return Some(filename.into());
+        }
+    } else {
+        let mut f = PathBuf::from(path);
+        f.push(filename);
+        if f.is_file() {
+            return Some(f);
+        }
+    }
+
+    locate_build_id(build_id)
 }
