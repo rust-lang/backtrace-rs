@@ -257,6 +257,10 @@ impl<'a> Object<'a> {
         const BUILD_ID_PATH: &[u8] = b"/usr/lib/debug/.build-id/";
         const BUILD_ID_SUFFIX: &[u8] = b".debug";
 
+        if !debug_path_exists() {
+            return None;
+        }
+
         let build_id = self.build_id()?;
         if build_id.len() < 2 {
             return None;
@@ -334,10 +338,33 @@ fn decompress_zlib(input: &[u8], output: &mut [u8]) -> Option<()> {
     }
 }
 
+const DEBUG_PATH: &[u8] = b"/usr/lib/debug";
+
+fn debug_path_exists() -> bool {
+    cfg_if::cfg_if! {
+        if #[cfg(any(target_os = "freebsd", target_os = "linux"))] {
+            use core::sync::atomic::{AtomicU8, Ordering};
+            static DEBUG_PATH_EXISTS: AtomicU8 = AtomicU8::new(0);
+
+            let mut exists = DEBUG_PATH_EXISTS.load(Ordering::Relaxed);
+            if exists == 0 {
+                exists = if Path::new(OsStr::from_bytes(DEBUG_PATH)).is_dir() {
+                    1
+                } else {
+                    2
+                };
+                DEBUG_PATH_EXISTS.store(exists, Ordering::Relaxed);
+            }
+            exists == 1
+        } else {
+            false
+        }
+    }
+}
+
 // Search order matches gdb, documented at:
 // https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
 fn locate_debuglink(path: &Path, filename: &[u8]) -> Option<PathBuf> {
-    const DEBUG_PATH: &[u8] = b"/usr/lib/debug";
     let path = fs::canonicalize(path).ok()?;
     let parent = path.parent()?;
     let mut f = PathBuf::from(OsString::with_capacity(
@@ -363,16 +390,17 @@ fn locate_debuglink(path: &Path, filename: &[u8]) -> Option<PathBuf> {
         return Some(f);
     }
 
-    // Try "/usr/lib/debug/parent/filename"
-    let mut s = OsString::from(f);
-    s.clear();
-    f = PathBuf::from(s);
-    f.clear();
-    f.push(OsStr::from_bytes(DEBUG_PATH));
-    f.push(parent.strip_prefix("/").unwrap());
-    f.push(filename);
-    if f.is_file() {
-        return Some(f);
+    if debug_path_exists() {
+        // Try "/usr/lib/debug/parent/filename"
+        let mut s = OsString::from(f);
+        s.clear();
+        f = PathBuf::from(s);
+        f.push(OsStr::from_bytes(DEBUG_PATH));
+        f.push(parent.strip_prefix("/").unwrap());
+        f.push(filename);
+        if f.is_file() {
+            return Some(f);
+        }
     }
 
     None
