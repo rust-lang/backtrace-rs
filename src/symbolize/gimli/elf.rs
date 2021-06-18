@@ -434,7 +434,9 @@ fn locate_debugaltlink(path: &Path, filename: &[u8], build_id: &[u8]) -> Option<
             return Some(filename.into());
         }
     } else {
-        let mut f = PathBuf::from(path);
+        let path = fs::canonicalize(path).ok()?;
+        let parent = path.parent()?;
+        let mut f = PathBuf::from(parent);
         f.push(filename);
         if f.is_file() {
             return Some(f);
