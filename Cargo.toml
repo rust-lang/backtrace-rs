@@ -26,7 +26,7 @@ exclude = [
 
 [dependencies]
 cfg-if = "1.0"
-rustc-demangle = "0.1.4"
+rustc-demangle = { version = "0.1.4", optional = true }
 libc = { version = "0.2.94", default-features = false }
 
 # Optionally enable the ability to serialize a `Backtrace`, controlled through
@@ -35,7 +35,8 @@ serde = { version = "1.0", optional = true, features = ['derive'] }
 rustc-serialize = { version = "0.3", optional = true }
 
 # Optionally demangle C++ frames' symbols in backtraces.
-cpp_demangle = { default-features = false, version = "0.3.0", optional = true }
+# Renamed so we can have a cpp_demangle feature.
+cpp_demangle_crate = { package = "cpp_demangle", default-features = false, version = "0.3.0", optional = true }
 
 
 # Optional dependencies enabled through the `gimli-symbolize` feature, do not
@@ -61,10 +62,12 @@ libloading = "0.7"
 
 [features]
 # By default libstd support and gimli-symbolize is used to symbolize addresses.
-default = ["std"]
+default = ["std", "rustc-demangle"]
 
 # Include std support. This enables types like `Backtrace`.
 std = []
+
+cpp_demangle = ["cpp_demangle_crate", "rustc-demangle"]
 
 #=======================================
 # Methods of serialization

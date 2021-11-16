@@ -10,7 +10,6 @@ cfg_if::cfg_if! {
 use super::backtrace::Frame;
 use super::types::BytesOrWideString;
 use core::ffi::c_void;
-use rustc_demangle::{try_demangle, Demangle};
 
 /// Resolve an address to a symbol, passing the symbol to the specified
 /// closure.
@@ -278,14 +277,42 @@ impl fmt::Debug for Symbol {
 }
 
 cfg_if::cfg_if! {
+    if #[cfg(feature = "rustc-demangle")] {
+        use rustc_demangle::{Demangle, try_demangle};
+    } else {
+        // Just store the UTF-8 string, to save on re-parsing.
+        struct Demangle<'a>(&'a str);
+        impl<'a> Demangle<'a> {
+            fn as_str(&self) -> &'a str {
+                self.0
+            }
+        }
+        impl fmt::Display for Demangle<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+        impl fmt::Debug for Demangle<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+
+        fn try_demangle(input: &str) -> Result<Demangle<'_>, core::convert::Infallible> {
+            Ok(Demangle(input))
+        }
+    }
+}
+
+cfg_if::cfg_if! {
     if #[cfg(feature = "cpp_demangle")] {
         // Maybe a parsed C++ symbol, if parsing the mangled symbol as Rust
         // failed.
-        struct OptionCppSymbol<'a>(Option<::cpp_demangle::BorrowedSymbol<'a>>);
+        struct OptionCppSymbol<'a>(Option<::cpp_demangle_crate::BorrowedSymbol<'a>>);
 
         impl<'a> OptionCppSymbol<'a> {
             fn parse(input: &'a [u8]) -> OptionCppSymbol<'a> {
-                OptionCppSymbol(::cpp_demangle::BorrowedSymbol::new(input).ok())
+                OptionCppSymbol(::cpp_demangle_crate::BorrowedSymbol::new(input).ok())
             }
 
             fn none() -> OptionCppSymbol<'a> {
