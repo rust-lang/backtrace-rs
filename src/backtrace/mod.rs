@@ -3,9 +3,9 @@ use core::fmt;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 
-#[cfg(all(target_os = "android", target_arch = "arm"))]
-const DEFAULT_TRACE_DEPTH_LIMIT: usize = usize::MAX;
 #[cfg(not(all(target_os = "android", target_arch = "arm")))]
+const DEFAULT_TRACE_DEPTH_LIMIT: usize = usize::MAX;
+#[cfg(all(target_os = "android", target_arch = "arm"))]
 const DEFAULT_TRACE_DEPTH_LIMIT: usize = 65535;
 static TRACE_DEPTH_LIMIT: AtomicUsize = AtomicUsize::new(DEFAULT_TRACE_DEPTH_LIMIT);
 
