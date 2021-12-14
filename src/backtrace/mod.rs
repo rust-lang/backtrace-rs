@@ -73,34 +73,23 @@ pub fn trace<F: FnMut(&Frame) -> bool>(cb: F) {
 pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
     let mut depth = 0usize;
     let depth_limit = TRACE_DEPTH_LIMIT.load(SeqCst);
-    trace_imp(&mut |frame| {
+    trace_unsynchronized_inner(|frame| {
         depth += 1;
         cb(frame) && depth < depth_limit
-    })
+    });
+}
+
+#[inline(always)]
+unsafe fn trace_unsynchronized_inner<F: FnMut(&Frame) -> bool>(mut cb: F) {
+    trace_imp(&mut cb)
 }
 
 /// Set depth limit of `trace` function.
-/// # Example
-///
-/// ```
-/// extern crate backtrace;
-///
-/// fn main() {
-///     let mut depth = 0usize;
-///     backtrace::set_trace_depth_limit(2);
-///     backtrace::trace(|frame| {
-///         depth += 1;
-///         true // continue the backtrace
-///     });
-///     assert_eq!(depth, 2);
-/// }
-/// ```
 pub fn set_trace_depth_limit(limit: usize) {
     TRACE_DEPTH_LIMIT.store(limit, SeqCst);
 }
 
 /// Get current depth limit of `trace` function.
-/// See infomation on `set_trace_depth_limit`.
 pub fn get_trace_depth_limit() -> usize {
     TRACE_DEPTH_LIMIT.load(SeqCst)
 }
