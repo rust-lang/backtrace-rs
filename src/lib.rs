@@ -111,7 +111,7 @@ extern crate std;
 extern crate alloc;
 
 pub use self::backtrace::{
-    set_trace_depth_limit, get_trace_depth_limit, trace_unsynchronized, Frame,
+    get_trace_depth_limit, set_trace_depth_limit, trace_unsynchronized, Frame,
 };
 mod backtrace;
 
