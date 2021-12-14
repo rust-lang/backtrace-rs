@@ -1,5 +1,13 @@
 use core::ffi::c_void;
 use core::fmt;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::SeqCst;
+
+#[cfg(all(target_os = "android", target_arch = "arm"))]
+const DEFAULT_TRACE_DEPTH_LIMIT: usize = usize::MAX;
+#[cfg(not(all(target_os = "android", target_arch = "arm")))]
+const DEFAULT_TRACE_DEPTH_LIMIT: usize = 65535;
+static TRACE_DEPTH_LIMIT: AtomicUsize = AtomicUsize::new(DEFAULT_TRACE_DEPTH_LIMIT);
 
 /// Inspects the current call-stack, passing all active frames into the closure
 /// provided to calculate a stack trace.
@@ -63,7 +71,38 @@ pub fn trace<F: FnMut(&Frame) -> bool>(cb: F) {
 ///
 /// See information on `trace` for caveats on `cb` panicking.
 pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
-    trace_imp(&mut cb)
+    let mut depth = 0usize;
+    let depth_limit = TRACE_DEPTH_LIMIT.load(SeqCst);
+    trace_imp(&mut |frame| {
+        depth += 1;
+        cb(frame) && depth < depth_limit
+    })
+}
+
+/// Set depth limit of `trace` function.
+/// # Example
+///
+/// ```
+/// extern crate backtrace;
+///
+/// fn main() {
+///     let mut depth = 0usize;
+///     backtrace::set_trace_depth_limit(2);
+///     backtrace::trace(|frame| {
+///         depth += 1;
+///         true // continue the backtrace
+///     });
+///     assert_eq!(depth, 2);
+/// }
+/// ```
+pub fn set_trace_depth_limit(limit: usize) {
+    TRACE_DEPTH_LIMIT.store(limit, SeqCst);
+}
+
+/// Get current depth limit of `trace` function.
+/// See infomation on `set_trace_depth_limit`.
+pub fn get_trace_depth_limit() -> usize {
+    TRACE_DEPTH_LIMIT.load(SeqCst)
 }
 
 /// A trait representing one frame of a backtrace, yielded to the `trace`

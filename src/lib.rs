@@ -110,7 +110,9 @@ extern crate std;
 #[allow(unused_extern_crates)]
 extern crate alloc;
 
-pub use self::backtrace::{trace_unsynchronized, Frame};
+pub use self::backtrace::{
+    set_trace_depth_limit, get_trace_depth_limit, trace_unsynchronized, Frame,
+};
 mod backtrace;
 
 pub use self::symbolize::resolve_frame_unsynchronized;
