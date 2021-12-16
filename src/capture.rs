@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// This function requires the `std` feature of the `backtrace` crate to be
 /// enabled, and the `std` feature is enabled by default.
-#[derive(Clone)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize-rustc", derive(RustcDecodable, RustcEncodable))]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Backtrace {
@@ -49,6 +49,22 @@ fn _assert_send_sync() {
 pub struct BacktraceFrame {
     frame: Frame,
     symbols: Option<Vec<BacktraceSymbol>>,
+}
+
+impl PartialEq for BacktraceFrame {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.frame.eq(&other.frame)
+    }
+}
+
+impl Eq for BacktraceFrame {}
+
+impl std::hash::Hash for BacktraceFrame {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.frame.hash(state);
+    }
 }
 
 #[derive(Clone)]
@@ -85,6 +101,22 @@ impl Frame {
                 ..
             } => module_base_address.map(|addr| addr as *mut c_void),
         }
+    }
+}
+
+impl PartialEq for Frame {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.ip().eq(&other.ip())
+    }
+}
+
+impl Eq for Frame {}
+
+impl std::hash::Hash for Frame {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ip().hash(state);
     }
 }
 
