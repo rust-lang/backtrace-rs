@@ -88,14 +88,31 @@ impl Frame {
 #[repr(C, align(16))] // required by `CONTEXT`, is a FIXME in winapi right now
 struct MyContext(CONTEXT);
 
-#[inline(always)]
-pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
+//#[inline(always)]
+pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: *mut c_void) {
     // Allocate necessary structures for doing the stack walk
     let process = GetCurrentProcess();
-    let thread = GetCurrentThread();
 
     let mut context = mem::zeroed::<MyContext>();
-    RtlCaptureContext(&mut context.0);
+    if thread == GetCurrentThread() || thread.is_null() {
+        RtlCaptureContext(&mut context.0);
+    } else {
+        const CONTEXT_i386: u32 = 0x10000;
+        const CONTEXT_CONTROL: u32 = CONTEXT_i386 | 0x01; // SS:SP, CS:IP, FLAGS, B;
+        const CONTEXT_INTEGER: u32 = CONTEXT_i386 | 0x02; // AX, BX, CX, DX, SI, D;
+        const CONTEXT_SEGMENTS: u32 = CONTEXT_i386 | 0x04; // DS, ES, FS, G;
+        const CONTEXT_FLOATING_POINT: u32 = CONTEXT_i386 | 0x08; // 387 stat;
+        const CONTEXT_DEBUG_REGISTERS: u32 = CONTEXT_i386 | 0x10; // DB 0-3,6,;
+        const CONTEXT_EXTENDED_REGISTERS: u32 = CONTEXT_i386 | 0x20; // cpu specific extension;
+        const CONTEXT_ALL: u32 = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS |  CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS |  CONTEXT_EXTENDED_REGISTERS;
+
+        context.0.ContextFlags = CONTEXT_ALL; // TODO: Narrow down flags
+        let status = GetThreadContext(thread, &mut context.0);
+        if status == 0 {
+            return // GetThreadContext failed 
+        }
+    }
+
 
     // Ensure this process's symbols are initialized
     let dbghelp = match dbghelp::init() {

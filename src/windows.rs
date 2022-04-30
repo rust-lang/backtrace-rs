@@ -375,6 +375,7 @@ ffi! {
         pub fn GetCurrentProcess() -> HANDLE;
         pub fn GetCurrentThread() -> HANDLE;
         pub fn RtlCaptureContext(ContextRecord: PCONTEXT) -> ();
+        pub fn GetThreadContext(ThreadHandle: HANDLE, ContextRecord: PCONTEXT) -> DWORD;
         pub fn LoadLibraryA(a: *const i8) -> HMODULE;
         pub fn GetProcAddress(h: HMODULE, name: *const i8) -> FARPROC;
         pub fn GetModuleHandleA(name: *const i8) -> HMODULE;
