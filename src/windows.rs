@@ -346,6 +346,15 @@ ffi! {
     pub const INVALID_HANDLE_VALUE: HANDLE = -1isize as HANDLE;
     pub const MAX_MODULE_NAME32: usize = 255;
     pub const MAX_PATH: usize = 260;
+    pub const CONTEXT_i386: u32 = 0x10000;
+    pub const CONTEXT_CONTROL: u32 = CONTEXT_i386 | 0x01; // SS:SP, CS:IP, FLAGS, B;
+    pub const CONTEXT_INTEGER: u32 = CONTEXT_i386 | 0x02; // AX, BX, CX, DX, SI, D;
+    pub const CONTEXT_SEGMENTS: u32 = CONTEXT_i386 | 0x04; // DS, ES, FS, G;
+    pub const CONTEXT_FLOATING_POINT: u32 = CONTEXT_i386 | 0x08; // 387 stat;
+    pub const CONTEXT_DEBUG_REGISTERS: u32 = CONTEXT_i386 | 0x10; // DB 0-3,6,;
+    pub const CONTEXT_EXTENDED_REGISTERS: u32 = CONTEXT_i386 | 0x20; // cpu specific extension;
+    pub const CONTEXT_ALL: u32 = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS |  CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS |  CONTEXT_EXTENDED_REGISTERS;
+
 
     pub type DWORD = u32;
     pub type PDWORD = *mut u32;
@@ -376,6 +385,8 @@ ffi! {
         pub fn GetCurrentThread() -> HANDLE;
         pub fn RtlCaptureContext(ContextRecord: PCONTEXT) -> ();
         pub fn GetThreadContext(ThreadHandle: HANDLE, ContextRecord: PCONTEXT) -> DWORD;
+        pub fn SuspendThread(ThreadHandle: HANDLE) -> DWORD;
+        pub fn ResumeThread(ThreadHandle: HANDLE) -> DWORD;
         pub fn LoadLibraryA(a: *const i8) -> HMODULE;
         pub fn GetProcAddress(h: HMODULE, name: *const i8) -> FARPROC;
         pub fn GetModuleHandleA(name: *const i8) -> HMODULE;

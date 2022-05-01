@@ -97,19 +97,23 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: *mut c_vo
     if thread == GetCurrentThread() || thread.is_null() {
         RtlCaptureContext(&mut context.0);
     } else {
-        const CONTEXT_i386: u32 = 0x10000;
-        const CONTEXT_CONTROL: u32 = CONTEXT_i386 | 0x01; // SS:SP, CS:IP, FLAGS, B;
-        const CONTEXT_INTEGER: u32 = CONTEXT_i386 | 0x02; // AX, BX, CX, DX, SI, D;
-        const CONTEXT_SEGMENTS: u32 = CONTEXT_i386 | 0x04; // DS, ES, FS, G;
-        const CONTEXT_FLOATING_POINT: u32 = CONTEXT_i386 | 0x08; // 387 stat;
-        const CONTEXT_DEBUG_REGISTERS: u32 = CONTEXT_i386 | 0x10; // DB 0-3,6,;
-        const CONTEXT_EXTENDED_REGISTERS: u32 = CONTEXT_i386 | 0x20; // cpu specific extension;
-        const CONTEXT_ALL: u32 = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS |  CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS |  CONTEXT_EXTENDED_REGISTERS;
+        // The suspending and resuming of threads is very risky.
+        // It can end in a deadlock if the current thread tries to access
+        // an object thats been locked by the suspended thread.
+        // That's why we only do as little work as possible while
+        // the thread is suspended, and resume it quickly after.
 
-        context.0.ContextFlags = CONTEXT_ALL; // TODO: Narrow down flags
+        // There is most definitely more pitfalls i haven't thought
+        // of or encountered. This is windows after all.
+
+        context.0.ContextFlags = CONTEXT_ALL; // TODO: Narrow down required flags
+        if SuspendThread(thread) as i32 == -1 {
+            ResumeThread(thread);
+            return;
+        }
         let status = GetThreadContext(thread, &mut context.0);
-        if status == 0 {
-            return // GetThreadContext failed 
+        if ResumeThread(thread) as i32 == -1 || status == 0{
+            return;
         }
     }
 

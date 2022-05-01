@@ -67,7 +67,7 @@ pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
 }
 
 /// TODO docs
-pub unsafe fn trace_thread_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F, thread: *mut c_void) {
+pub unsafe fn trace_thread_unsynchronized<F: FnMut(&Frame) -> bool>(thread: *mut c_void, mut cb: F) {
     trace_imp(&mut cb, thread)
 }
 
