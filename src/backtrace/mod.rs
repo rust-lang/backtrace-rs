@@ -82,7 +82,7 @@ pub unsafe fn trace_thread_unsynchronized<F: FnMut(&Frame) -> bool>(
     thread: *mut c_void,
     mut cb: F,
 ) {
-    trace_thread_imp(&mut cb, thread)
+    trace_thread_imp(&mut cb, thread as super::windows::HANDLE);
 }
 
 /// A trait representing one frame of a backtrace, yielded to the `trace`

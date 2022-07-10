@@ -95,7 +95,7 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
 }
 
 #[inline(always)]
-pub unsafe fn trace_thread(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: *mut c_void) {
+pub unsafe fn trace_thread(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: HANDLE) {
     // Allocate necessary structures for doing the stack walk
     let process = GetCurrentProcess();
 
