@@ -1,24 +1,24 @@
-#[cfg(all(windows, not(target_vendor = "uwp")))]
+#[cfg(all(windows, not(target_vendor = "uwp"), feature = "std"))]
 use backtrace::{Backtrace, BacktraceFrame};
-#[cfg(all(windows, not(target_vendor = "uwp")))]
+#[cfg(all(windows, not(target_vendor = "uwp"), feature = "std"))]
 use std::os::windows::prelude::AsRawHandle;
 
-#[cfg(all(windows, not(target_vendor = "uwp")))]
+#[cfg(all(windows, not(target_vendor = "uwp"), feature = "std"))]
 fn worker() {
     foo();
 }
 
-#[cfg(all(windows, not(target_vendor = "uwp")))]
+#[cfg(all(windows, not(target_vendor = "uwp"), feature = "std"))]
 fn foo() {
     bar()
 }
 
-#[cfg(all(windows, not(target_vendor = "uwp")))]
+#[cfg(all(windows, not(target_vendor = "uwp"), feature = "std"))]
 fn bar() {
     baz()
 }
 
-#[cfg(all(windows, not(target_vendor = "uwp")))]
+#[cfg(all(windows, not(target_vendor = "uwp"), feature = "std"))]
 fn baz() {
     println!("Hello from thread!");
     // Sleep for simple sync. Can't read thread that has finished running
@@ -28,7 +28,7 @@ fn baz() {
     }
 }
 
-#[cfg(all(windows, not(target_vendor = "uwp")))]
+#[cfg(all(windows, not(target_vendor = "uwp"), feature = "std"))]
 fn main() {
     let thread = std::thread::spawn(|| {
         worker();
@@ -51,7 +51,7 @@ fn main() {
     println!("{:?}", bt);
 }
 
-#[cfg(not(all(windows, not(target_vendor = "uwp"))))]
+#[cfg(not(all(windows, not(target_vendor = "uwp"), feature = "std")))]
 fn main() {
-    println!("This example is skipped on non Windows platforms");
+    println!("This example is skipped on non-Windows or no-std platforms");
 }
