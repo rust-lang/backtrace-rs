@@ -177,8 +177,6 @@ cfg_if::cfg_if! {
     } else {
         mod noop;
         use self::noop::trace as trace_imp;
-        use self::noop::trace_thread as trace_thread_imp;
-        use self::noop::trace_thread_unsynchronized;
         pub(crate) use self::noop::Frame as FrameImp;
     }
 }
