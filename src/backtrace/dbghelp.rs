@@ -88,8 +88,14 @@ impl Frame {
 #[repr(C, align(16))] // required by `CONTEXT`, is a FIXME in winapi right now
 struct MyContext(CONTEXT);
 
-//#[inline(always)]
-pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: *mut c_void) {
+#[inline(always)]
+pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
+    let thread = GetCurrentThread();
+    trace_thread(cb, thread)
+}
+
+#[inline(always)]
+pub unsafe fn trace_thread(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: *mut c_void) {
     // Allocate necessary structures for doing the stack walk
     let process = GetCurrentProcess();
 
@@ -112,11 +118,10 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: *mut c_vo
             return;
         }
         let status = GetThreadContext(thread, &mut context.0);
-        if ResumeThread(thread) as i32 == -1 || status == 0{
+        if ResumeThread(thread) as i32 == -1 || status == 0 {
             return;
         }
     }
-
 
     // Ensure this process's symbols are initialized
     let dbghelp = match dbghelp::init() {

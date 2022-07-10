@@ -1,6 +1,8 @@
 use core::ffi::c_void;
 use core::fmt;
 
+use self::dbghelp::trace_thread;
+
 /// Inspects the current call-stack, passing all active frames into the closure
 /// provided to calculate a stack trace.
 ///
@@ -63,12 +65,25 @@ pub fn trace<F: FnMut(&Frame) -> bool>(cb: F) {
 ///
 /// See information on `trace` for caveats on `cb` panicking.
 pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
-    trace_imp(&mut cb, 0 as _)
+    trace_imp(&mut cb)
 }
 
-/// TODO docs
-pub unsafe fn trace_thread_unsynchronized<F: FnMut(&Frame) -> bool>(thread: *mut c_void, mut cb: F) {
-    trace_imp(&mut cb, thread)
+/// Similar to [trace_unsynchronized], but additionally, it supports tracing a thread other than the current thread.
+///
+/// The function gets the traced thread's handle as its first argument.
+///
+/// This function does not have synchronization guarantees but is available
+/// when the `std` feature of this crate isn't compiled in. See the `trace`
+/// function for more documentation and examples.
+///
+/// # Panics
+///
+/// See information on `trace` for caveats on `cb` panicking.
+pub unsafe fn trace_thread_unsynchronized<F: FnMut(&Frame) -> bool>(
+    thread: *mut c_void,
+    mut cb: F,
+) {
+    trace_thread(&mut cb, thread)
 }
 
 /// A trait representing one frame of a backtrace, yielded to the `trace`
