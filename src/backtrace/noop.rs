@@ -6,6 +6,11 @@ use core::ffi::c_void;
 #[inline(always)]
 pub fn trace(_cb: &mut dyn FnMut(&super::Frame) -> bool) {}
 
+#[inline(always)]
+pub fn trace_thread(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: *mut c_void) {}
+
+pub fn trace_thread_unsynchronized<F: FnMut(&Frame) -> bool>(thread: *mut c_void, mut cb: F) {}
+
 #[derive(Clone)]
 pub struct Frame;
 

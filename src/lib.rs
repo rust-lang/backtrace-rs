@@ -110,7 +110,10 @@ extern crate std;
 #[allow(unused_extern_crates)]
 extern crate alloc;
 
-pub use self::backtrace::{trace_thread_unsynchronized, trace_unsynchronized, Frame};
+#[cfg(all(windows, not(target_vendor = "uwp")))]
+pub use self::backtrace::trace_thread_unsynchronized;
+
+pub use self::backtrace::{trace_unsynchronized, Frame};
 mod backtrace;
 
 pub use self::symbolize::resolve_frame_unsynchronized;

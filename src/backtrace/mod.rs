@@ -1,8 +1,6 @@
 use core::ffi::c_void;
 use core::fmt;
 
-use self::dbghelp::trace_thread;
-
 /// Inspects the current call-stack, passing all active frames into the closure
 /// provided to calculate a stack trace.
 ///
@@ -79,11 +77,12 @@ pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
 /// # Panics
 ///
 /// See information on `trace` for caveats on `cb` panicking.
+#[cfg(all(windows, not(target_vendor = "uwp")))]
 pub unsafe fn trace_thread_unsynchronized<F: FnMut(&Frame) -> bool>(
     thread: *mut c_void,
     mut cb: F,
 ) {
-    trace_thread(&mut cb, thread)
+    trace_thread_imp(&mut cb, thread)
 }
 
 /// A trait representing one frame of a backtrace, yielded to the `trace`
@@ -171,12 +170,15 @@ cfg_if::cfg_if! {
     } else if #[cfg(all(windows, not(target_vendor = "uwp")))] {
         mod dbghelp;
         use self::dbghelp::trace as trace_imp;
+        use self::dbghelp::trace_thread as trace_thread_imp;
         pub(crate) use self::dbghelp::Frame as FrameImp;
         #[cfg(target_env = "msvc")] // only used in dbghelp symbolize
         pub(crate) use self::dbghelp::StackFrame;
     } else {
         mod noop;
         use self::noop::trace as trace_imp;
+        use self::noop::trace_thread as trace_thread_imp;
+        use self::noop::trace_thread_unsynchronized;
         pub(crate) use self::noop::Frame as FrameImp;
     }
 }
