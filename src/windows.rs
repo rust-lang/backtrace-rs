@@ -375,7 +375,7 @@ ffi! {
         pub fn GetCurrentProcess() -> HANDLE;
         pub fn GetCurrentThread() -> HANDLE;
         pub fn RtlCaptureContext(ContextRecord: PCONTEXT) -> ();
-        pub fn GetThreadContext(ThreadHandle: HANDLE, ContextRecord: PCONTEXT) -> DWORD;
+        pub fn GetThreadContext(ThreadHandle: HANDLE, ContextRecord: PCONTEXT) -> BOOL;
         pub fn SuspendThread(ThreadHandle: HANDLE) -> DWORD;
         pub fn ResumeThread(ThreadHandle: HANDLE) -> DWORD;
         pub fn LoadLibraryA(a: *const i8) -> HMODULE;
