@@ -108,9 +108,7 @@ pub unsafe fn trace_thread(cb: &mut dyn FnMut(&super::Frame) -> bool, thread: HA
         // an object thats been locked by the suspended thread.
         // That's why we only do as little work as possible while
         // the thread is suspended, and resume it quickly after.
-
-        // There is most definitely more pitfalls i haven't thought
-        // of or encountered. This is windows after all.
+        // There might be more pitfalls we haven't thought of or encountered
 
         context.0.ContextFlags = CONTEXT_ALL; // TODO: Narrow down required flags
         if SuspendThread(thread) as i32 == -1 {

@@ -68,7 +68,15 @@ pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
 
 /// Similar to [trace_unsynchronized], but additionally, it supports tracing a thread other than the current thread.
 ///
-/// The function gets the traced thread's handle as its first argument.
+/// It gets the traced thread's handle as its first argument.
+///
+/// # Safety
+///
+/// This function is intended for profiling and debugging.
+///
+/// If the given thread handle is not the current thread,
+/// this function suspends the thread for a short amount of time to be able to extract the thread context.
+/// This might end in a deadlock if the current thread tries to access an object thats been locked by the suspended thread.
 ///
 /// This function does not have synchronization guarantees but is available
 /// when the `std` feature of this crate isn't compiled in. See the `trace`
