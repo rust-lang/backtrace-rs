@@ -239,7 +239,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         if self.symbol_index == 0 {
             write!(self.fmt.fmt, "{:4}: ", self.fmt.frame_index)?;
             if let PrintFmt::Full = self.fmt.format {
-                write!(self.fmt.fmt, "{:1$?} - ", frame_ip, HEX_WIDTH)?;
+                write!(self.fmt.fmt, "{frame_ip:HEX_WIDTH$?} - ")?;
             }
         } else {
             write!(self.fmt.fmt, "      ")?;
@@ -252,8 +252,8 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // more information if we're a full backtrace. Here we also handle
         // symbols which don't have a name,
         match (symbol_name, &self.fmt.format) {
-            (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "{:#}", name)?,
-            (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "{}", name)?,
+            (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "{name:#}")?,
+            (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "{name}")?,
             (None, _) | (_, PrintFmt::__Nonexhaustive) => write!(self.fmt.fmt, "<unknown>")?,
         }
         self.fmt.fmt.write_str("\n")?;
@@ -275,18 +275,18 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // Filename/line are printed on lines under the symbol name, so print
         // some appropriate whitespace to sort of right-align ourselves.
         if let PrintFmt::Full = self.fmt.format {
-            write!(self.fmt.fmt, "{:1$}", "", HEX_WIDTH)?;
+            write!(self.fmt.fmt, "{:HEX_WIDTH$}", "")?;
         }
         write!(self.fmt.fmt, "             at ")?;
 
         // Delegate to our internal callback to print the filename and then
         // print out the line number.
         (self.fmt.print_path)(self.fmt.fmt, file)?;
-        write!(self.fmt.fmt, ":{}", line)?;
+        write!(self.fmt.fmt, ":{line}")?;
 
         // Add column number, if available.
         if let Some(colno) = colno {
-            write!(self.fmt.fmt, ":{}", colno)?;
+            write!(self.fmt.fmt, ":{colno}")?;
         }
 
         write!(self.fmt.fmt, "\n")?;
@@ -297,7 +297,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // We only care about the first symbol of a frame
         if self.symbol_index == 0 {
             self.fmt.fmt.write_str("{{{bt:")?;
-            write!(self.fmt.fmt, "{}:{:?}", self.fmt.frame_index, frame_ip)?;
+            write!(self.fmt.fmt, "{}:{frame_ip:?}", self.fmt.frame_index)?;
             self.fmt.fmt.write_str("}}}\n")?;
         }
         Ok(())

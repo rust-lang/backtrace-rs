@@ -29,8 +29,7 @@ fn build_android() {
         Ok(result) => result,
         Err(e) => {
             eprintln!(
-                "warning: android version detection failed while running C compiler: {}",
-                e
+                "warning: android version detection failed while running C compiler: {e}",
             );
             return;
         }
@@ -39,7 +38,7 @@ fn build_android() {
         Ok(s) => s,
         Err(_) => return,
     };
-    eprintln!("expanded android version detection:\n{}", expansion);
+    eprintln!("expanded android version detection:\n{expansion}");
     let i = match expansion.find(MARKER) {
         Some(i) => i,
         None => return,

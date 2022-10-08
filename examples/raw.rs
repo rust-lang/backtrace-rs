@@ -21,7 +21,7 @@ fn print() {
     let mut cnt = 0;
     backtrace::trace(|frame| {
         let ip = frame.ip();
-        print!("frame #{:<2} - {:#02$x}", cnt, ip as usize, HEX_WIDTH);
+        print!("frame #{cnt:<2} - {:#0HEX_WIDTH$x}", ip as usize);
         cnt += 1;
 
         let mut resolved = false;
@@ -33,13 +33,13 @@ fn print() {
             }
 
             if let Some(name) = symbol.name() {
-                print!(" - {}", name);
+                print!(" - {name}");
             } else {
                 print!(" - <unknown>");
             }
             if let Some(file) = symbol.filename() {
                 if let Some(l) = symbol.lineno() {
-                    print!("\n{:13}{:4$}@ {}:{}", "", "", file.display(), l, HEX_WIDTH);
+                    print!("\n{:13}{:HEX_WIDTH$}@ {}:{l}", "", "", file.display());
                 }
             }
             println!("");
