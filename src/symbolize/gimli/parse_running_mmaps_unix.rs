@@ -2,7 +2,9 @@
 // in `mod libs_dl_iterate_phdr` (e.g. linux, freebsd, ...); it may be more
 // general purpose, but it hasn't been tested elsewhere.
 
-use super::mystd::io::BufRead;
+use super::mystd::fs::File;
+use super::mystd::io::{BufRead, BufReader};
+use super::mystd::str::FromStr;
 use super::{OsString, Vec};
 
 #[derive(PartialEq, Eq, Debug)]
@@ -53,8 +55,8 @@ pub(super) struct MapsEntry {
 
 pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
     let mut v = Vec::new();
-    let proc_self_maps = std::fs::File::open("/proc/self/maps").map_err(|_| "couldnt open /proc/self/maps")?;
-    let proc_self_maps = std::io::BufReader::new(proc_self_maps);
+    let proc_self_maps = File::open("/proc/self/maps").map_err(|_| "couldnt open /proc/self/maps")?;
+    let proc_self_maps = BufReader::new(proc_self_maps);
     for line in proc_self_maps.lines() {
         let line = line.map_err(|_io_error| "couldnt read line from /proc/self/maps")?;
         v.push(line.parse()?);
@@ -73,7 +75,7 @@ impl MapsEntry {
     }
 }
 
-impl std::str::FromStr for MapsEntry {
+impl FromStr for MapsEntry {
     type Err = &'static str;
 
     // Format: address perms offset dev inode pathname
