@@ -117,8 +117,10 @@ impl FromStr for MapsEntry {
     }
 }
 
+// Make sure we can parse 64-bit sample output if we're on a 64-bit target.
+#[cfg(target_pointer_width = "64")]
 #[test]
-fn check_maps_entry_parsing() {
+fn check_maps_entry_parsing_64bit() {
     assert_eq!("ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  \
                 [vsyscall]".parse::<MapsEntry>().unwrap(),
                MapsEntry {
@@ -143,6 +145,46 @@ fn check_maps_entry_parsing() {
     assert_eq!("35b1a21000-35b1a22000 rw-p 00000000 00:00 0".parse::<MapsEntry>().unwrap(),
                  MapsEntry {
                      address: (0x35b1a21000, 0x35b1a22000),
+                     perms: ['r','w','-','p'],
+                     offset: 0x00000000,
+                     dev: (0x00,0x00),
+                     inode: 0x0,
+                     pathname: Default::default(),
+                 });
+}
+
+// (This output was taken from a 32-bit machine, but will work on any target)
+#[test]
+fn check_maps_entry_parsing_32bit() {
+    /* Example snippet of output:
+08056000-08077000 rw-p 00000000 00:00 0          [heap]
+b7c79000-b7e02000 r--p 00000000 08:01 60662705   /usr/lib/locale/locale-archive
+b7e02000-b7e03000 rw-p 00000000 00:00 0
+    */
+    assert_eq!("08056000-08077000 rw-p 00000000 00:00 0          \
+                [heap]".parse::<MapsEntry>().unwrap(),
+               MapsEntry {
+                   address: (0x08056000, 0x08077000),
+                   perms: ['r','w','-','p'],
+                   offset: 0x00000000,
+                   dev: (0x00, 0x00),
+                   inode: 0x0,
+                   pathname: "[heap]".into(),
+               });
+
+    assert_eq!("b7c79000-b7e02000 r--p 00000000 08:01 60662705   \
+                /usr/lib/locale/locale-archive".parse::<MapsEntry>().unwrap(),
+                 MapsEntry {
+                     address: (0xb7c79000, 0xb7e02000),
+                     perms: ['r','-','-','p'],
+                     offset: 0x00000000,
+                     dev: (0x08, 0x01),
+                     inode: 0x60662705,
+                     pathname: "/usr/lib/locale/locale-archive".into(),
+                 });
+    assert_eq!("b7e02000-b7e03000 rw-p 00000000 00:00 0".parse::<MapsEntry>().unwrap(),
+                 MapsEntry {
+                     address: (0xb7e02000, 0xb7e03000),
                      perms: ['r','w','-','p'],
                      offset: 0x00000000,
                      dev: (0x00,0x00),
