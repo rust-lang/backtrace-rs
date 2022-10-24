@@ -3,9 +3,9 @@
 // general purpose, but it hasn't been tested elsewhere.
 
 use super::mystd::fs::File;
-use super::mystd::io::{BufRead, BufReader};
+use super::mystd::io::Read;
 use super::mystd::str::FromStr;
-use super::{OsString, Vec};
+use super::{OsString, String, Vec};
 
 #[derive(PartialEq, Eq, Debug)]
 pub(super) struct MapsEntry {
@@ -55,11 +55,11 @@ pub(super) struct MapsEntry {
 
 pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
     let mut v = Vec::new();
-    let proc_self_maps =
+    let mut proc_self_maps =
         File::open("/proc/self/maps").map_err(|_| "Couldn't open /proc/self/maps")?;
-    let proc_self_maps = BufReader::new(proc_self_maps);
-    for line in proc_self_maps.lines() {
-        let line = line.map_err(|_io_error| "Couldn't read line from /proc/self/maps")?;
+    let mut buf = String::new();
+    let _bytes_read = proc_self_maps.read_to_string(&mut buf).map_err(|_| "Couldn't read /proc/self/maps")?;
+    for line in buf.lines() {
         v.push(line.parse()?);
     }
 
