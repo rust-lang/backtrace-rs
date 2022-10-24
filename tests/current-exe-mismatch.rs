@@ -112,7 +112,9 @@ fn find_interpreter(me: &Path) -> Result<PathBuf, EarlyExit> {
         .arg("-l")
         .arg(me)
         .output()
-        .unwrap();
+        .map_err(|_err| {
+            EarlyExit::IgnoreTest("readelf invocation failed".into())
+        })?;
     if result.status.success() {
         let r = BufReader::new(&result.stdout[..]);
         for line in r.lines() {
@@ -128,6 +130,6 @@ fn find_interpreter(me: &Path) -> Result<PathBuf, EarlyExit> {
 
         Err(EarlyExit::IgnoreTest("could not find interpreter from readelf output".into()))
     } else {
-        Err(EarlyExit::IgnoreTest("readelf invocation failed".into()))
+        Err(EarlyExit::IgnoreTest("readelf returned non-success".into()))
     }
 }
