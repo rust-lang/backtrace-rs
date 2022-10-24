@@ -13,8 +13,7 @@ mod common;
 
 fn main() {
     // If we cannot re-exec this test, there's no point in trying to do it.
-    if common::cannot_reexec_the_test()
-    {
+    if common::cannot_reexec_the_test() {
         println!("test result: ok");
         return;
     }

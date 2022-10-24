@@ -2,9 +2,9 @@
 // `std::env::current_exe` will return the path of *that* program, and not
 // the Rust program itself.
 
-use std::process::Command;
-use std::path::{Path, PathBuf};
 use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 mod common;
 
@@ -46,8 +46,7 @@ impl From<std::io::Error> for EarlyExit {
 
 fn parent() -> Result<(), EarlyExit> {
     // If we cannot re-exec this test, there's no point in trying to do it.
-    if common::cannot_reexec_the_test()
-    {
+    if common::cannot_reexec_the_test() {
         return Err(EarlyExit::IgnoreTest("(cannot reexec)".into()));
     }
 
@@ -112,9 +111,7 @@ fn find_interpreter(me: &Path) -> Result<PathBuf, EarlyExit> {
         .arg("-l")
         .arg(me)
         .output()
-        .map_err(|_err| {
-            EarlyExit::IgnoreTest("readelf invocation failed".into())
-        })?;
+        .map_err(|_err| EarlyExit::IgnoreTest("readelf invocation failed".into()))?;
     if result.status.success() {
         let r = BufReader::new(&result.stdout[..]);
         for line in r.lines() {
@@ -128,7 +125,9 @@ fn find_interpreter(me: &Path) -> Result<PathBuf, EarlyExit> {
             }
         }
 
-        Err(EarlyExit::IgnoreTest("could not find interpreter from readelf output".into()))
+        Err(EarlyExit::IgnoreTest(
+            "could not find interpreter from readelf output".into(),
+        ))
     } else {
         Err(EarlyExit::IgnoreTest("readelf returned non-success".into()))
     }
