@@ -58,7 +58,9 @@ pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
     let mut proc_self_maps =
         File::open("/proc/self/maps").map_err(|_| "Couldn't open /proc/self/maps")?;
     let mut buf = String::new();
-    let _bytes_read = proc_self_maps.read_to_string(&mut buf).map_err(|_| "Couldn't read /proc/self/maps")?;
+    let _bytes_read = proc_self_maps
+        .read_to_string(&mut buf)
+        .map_err(|_| "Couldn't read /proc/self/maps")?;
     for line in buf.lines() {
         v.push(line.parse()?);
     }
