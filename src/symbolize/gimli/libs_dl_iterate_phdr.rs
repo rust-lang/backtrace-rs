@@ -60,6 +60,9 @@ unsafe extern "C" fn callback(
         name,
         segments: headers
             .iter()
+            .filter(|header| {
+                (header.p_type & libc::PT_LOAD) != 0 && (header.p_flags & libc::PF_X) == libc::PF_X
+            })
             .map(|header| LibrarySegment {
                 len: (*header).p_memsz as usize,
                 stated_virtual_memory_address: (*header).p_vaddr as usize,
