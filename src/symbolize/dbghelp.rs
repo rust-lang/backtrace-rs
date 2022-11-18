@@ -17,7 +17,11 @@
 
 #![allow(bad_style)]
 
-use super::super::{backtrace::StackFrame, dbghelp, windows::*};
+use windows_sys::{
+    Win32::Foundation::*, Win32::System::Diagnostics::Debug::*, Win32::System::Threading::*,
+};
+
+use super::super::{backtrace::StackFrame, dbghelp};
 use super::{BytesOrWideString, ResolveWhat, SymbolName};
 use core::char;
 use core::ffi::c_void;
@@ -122,8 +126,8 @@ unsafe fn resolve_without_inline(
     cb: &mut dyn FnMut(&super::Symbol),
 ) {
     do_resolve(
-        |info| dbghelp.SymFromAddrW()(GetCurrentProcess(), addr as DWORD64, &mut 0, info),
-        |line| dbghelp.SymGetLineFromAddrW64()(GetCurrentProcess(), addr as DWORD64, &mut 0, line),
+        |info| dbghelp.SymFromAddrW()(GetCurrentProcess(), addr as u64, &mut 0, info),
+        |line| dbghelp.SymGetLineFromAddrW64()(GetCurrentProcess(), addr as u64, &mut 0, line),
         cb,
     )
 }
@@ -133,17 +137,17 @@ unsafe fn do_resolve(
     get_line_from_addr: impl FnOnce(&mut IMAGEHLP_LINEW64) -> BOOL,
     cb: &mut dyn FnMut(&super::Symbol),
 ) {
-    const SIZE: usize = 2 * MAX_SYM_NAME + mem::size_of::<SYMBOL_INFOW>();
+    const SIZE: usize = 2 * MAX_SYM_NAME as usize + mem::size_of::<SYMBOL_INFOW>();
     let mut data = Aligned8([0u8; SIZE]);
     let data = &mut data.0;
     let info = &mut *(data.as_mut_ptr() as *mut SYMBOL_INFOW);
-    info.MaxNameLen = MAX_SYM_NAME as ULONG;
+    info.MaxNameLen = MAX_SYM_NAME;
     // the struct size in C.  the value is different to
     // `size_of::<SYMBOL_INFOW>() - MAX_SYM_NAME + 1` (== 81)
     // due to struct alignment.
     info.SizeOfStruct = 88;
 
-    if sym_from_addr(info) != TRUE {
+    if sym_from_addr(info) != 1 {
         return;
     }
 
@@ -176,12 +180,12 @@ unsafe fn do_resolve(
     let name = &name_buffer[..name_len] as *const [u8];
 
     let mut line = mem::zeroed::<IMAGEHLP_LINEW64>();
-    line.SizeOfStruct = mem::size_of::<IMAGEHLP_LINEW64>() as DWORD;
+    line.SizeOfStruct = mem::size_of::<IMAGEHLP_LINEW64>() as u32;
 
     let mut filename = None;
     let mut lineno = None;
-    if get_line_from_addr(&mut line) == TRUE {
-        lineno = Some(line.LineNumber as u32);
+    if get_line_from_addr(&mut line) == 1 {
+        lineno = Some(line.LineNumber);
 
         let base = line.FileName;
         let mut len = 0;

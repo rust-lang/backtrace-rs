@@ -12,7 +12,7 @@
 //! actually use the raw definitions in `winapi`, but rather we need to define
 //! the function pointer types ourselves and use that. We don't really want to
 //! be in the business of duplicating winapi, so we have a Cargo feature
-//! `verify-winapi` which asserts that all bindings match those in winapi and
+//! `verify-windows-sys` which asserts that all bindings match those in winapi and
 //! this feature is enabled on CI.
 //!
 //! Finally, you'll note here that the dll for `dbghelp.dll` is never unloaded,
@@ -23,43 +23,20 @@
 
 #![allow(non_snake_case)]
 
-use super::windows::*;
+use windows_sys::{
+    core::*, Win32::Foundation::*, Win32::System::Diagnostics::Debug::*,
+    Win32::System::LibraryLoader::*, Win32::System::Threading::*,
+    Win32::System::WindowsProgramming::*,
+};
+
+use core::ffi::c_void;
 use core::mem;
 use core::ptr;
 
-// Work around `SymGetOptions` and `SymSetOptions` not being present in winapi
-// itself. Otherwise this is only used when we're double-checking types against
-// winapi.
-#[cfg(feature = "verify-winapi")]
-mod dbghelp {
-    use crate::windows::*;
-    pub use winapi::um::dbghelp::{
-        StackWalk64, StackWalkEx, SymCleanup, SymFromAddrW, SymFunctionTableAccess64,
-        SymGetLineFromAddrW64, SymGetModuleBase64, SymGetOptions, SymInitializeW, SymSetOptions,
-    };
-
-    extern "system" {
-        // Not defined in winapi yet
-        pub fn SymFromInlineContextW(
-            hProcess: HANDLE,
-            Address: DWORD64,
-            InlineContext: ULONG,
-            Displacement: PDWORD64,
-            Symbol: PSYMBOL_INFOW,
-        ) -> BOOL;
-        pub fn SymGetLineFromInlineContextW(
-            hProcess: HANDLE,
-            dwAddr: DWORD64,
-            InlineContext: ULONG,
-            qwModuleBaseAddress: DWORD64,
-            pdwDisplacement: PDWORD,
-            Line: PIMAGEHLP_LINEW64,
-        ) -> BOOL;
-    }
-
-    pub fn assert_equal_types<T>(a: T, _b: T) -> T {
-        a
-    }
+// This is only used when we're double-checking function signatures against windows-sys.
+#[cfg(feature = "verify-windows-sys")]
+fn assert_equal_types<T>(a: T, _b: T) -> T {
+    a
 }
 
 // This macro is used to define a `Dbghelp` structure which internally contains
@@ -70,7 +47,7 @@ macro_rules! dbghelp {
     }) => (
         pub struct Dbghelp {
             /// The loaded DLL for `dbghelp.dll`
-            dll: HMODULE,
+            dll: HINSTANCE,
 
             // Each function pointer for each function we might use
             $($name: usize,)*
@@ -78,7 +55,7 @@ macro_rules! dbghelp {
 
         static mut DBGHELP: Dbghelp = Dbghelp {
             // Initially we haven't loaded the DLL
-            dll: 0 as *mut _,
+            dll: 0,
             // Initiall all functions are set to zero to say they need to be
             // dynamically loaded.
             $($name: 0,)*
@@ -93,13 +70,13 @@ macro_rules! dbghelp {
             ///
             /// Panics if library is already loaded.
             fn ensure_open(&mut self) -> Result<(), ()> {
-                if !self.dll.is_null() {
+                if self.dll != 0 {
                     return Ok(())
                 }
                 let lib = b"dbghelp.dll\0";
                 unsafe {
-                    self.dll = LoadLibraryA(lib.as_ptr() as *const i8);
-                    if self.dll.is_null() {
+                    self.dll = LoadLibraryA(lib.as_ptr());
+                    if self.dll == 0 {
                         Err(())
                     }  else {
                         Ok(())
@@ -117,18 +94,15 @@ macro_rules! dbghelp {
                         self.$name = self.symbol(name.as_bytes())?;
                     }
                     let ret = mem::transmute::<usize, $name>(self.$name);
-                    #[cfg(feature = "verify-winapi")]
-                    dbghelp::assert_equal_types(ret, dbghelp::$name);
+                    #[cfg(feature = "verify-windows-sys")]
+                    assert_equal_types(ret, $name);
                     Some(ret)
                 }
             })*
 
             fn symbol(&self, symbol: &[u8]) -> Option<usize> {
                 unsafe {
-                    match GetProcAddress(self.dll, symbol.as_ptr() as *const _) as usize {
-                        0 => None,
-                        n => Some(n),
-                    }
+                    GetProcAddress(self.dll, symbol.as_ptr()).map(|address|address as usize)
                 }
             }
         }
@@ -153,12 +127,10 @@ macro_rules! dbghelp {
 
 }
 
-const SYMOPT_DEFERRED_LOADS: DWORD = 0x00000004;
-
 dbghelp! {
     extern "system" {
-        fn SymGetOptions() -> DWORD;
-        fn SymSetOptions(options: DWORD) -> DWORD;
+        fn SymGetOptions() -> u32;
+        fn SymSetOptions(options: u32) -> u32;
         fn SymInitializeW(
             handle: HANDLE,
             path: PCWSTR,
@@ -166,11 +138,11 @@ dbghelp! {
         ) -> BOOL;
         fn SymCleanup(handle: HANDLE) -> BOOL;
         fn StackWalk64(
-            MachineType: DWORD,
+            MachineType: u32,
             hProcess: HANDLE,
             hThread: HANDLE,
-            StackFrame: LPSTACKFRAME64,
-            ContextRecord: PVOID,
+            StackFrame: *mut STACKFRAME64,
+            ContextRecord: *mut c_void,
             ReadMemoryRoutine: PREAD_PROCESS_MEMORY_ROUTINE64,
             FunctionTableAccessRoutine: PFUNCTION_TABLE_ACCESS_ROUTINE64,
             GetModuleBaseRoutine: PGET_MODULE_BASE_ROUTINE64,
@@ -178,50 +150,50 @@ dbghelp! {
         ) -> BOOL;
         fn SymFunctionTableAccess64(
             hProcess: HANDLE,
-            AddrBase: DWORD64
-        ) -> PVOID;
+            AddrBase: u64
+        ) -> *mut c_void;
         fn SymGetModuleBase64(
             hProcess: HANDLE,
-            AddrBase: DWORD64
-        ) -> DWORD64;
+            AddrBase: u64
+        ) -> u64;
         fn SymFromAddrW(
             hProcess: HANDLE,
-            Address: DWORD64,
-            Displacement: PDWORD64,
-            Symbol: PSYMBOL_INFOW
+            Address: u64,
+            Displacement: *mut u64,
+            Symbol: *mut SYMBOL_INFOW
         ) -> BOOL;
         fn SymGetLineFromAddrW64(
             hProcess: HANDLE,
-            dwAddr: DWORD64,
-            pdwDisplacement: PDWORD,
-            Line: PIMAGEHLP_LINEW64
+            dwAddr: u64,
+            pdwDisplacement: *mut u32,
+            Line: *mut IMAGEHLP_LINEW64
         ) -> BOOL;
         fn StackWalkEx(
-            MachineType: DWORD,
+            MachineType: u32,
             hProcess: HANDLE,
             hThread: HANDLE,
-            StackFrame: LPSTACKFRAME_EX,
-            ContextRecord: PVOID,
+            StackFrame: *mut STACKFRAME_EX,
+            ContextRecord: *mut c_void,
             ReadMemoryRoutine: PREAD_PROCESS_MEMORY_ROUTINE64,
             FunctionTableAccessRoutine: PFUNCTION_TABLE_ACCESS_ROUTINE64,
             GetModuleBaseRoutine: PGET_MODULE_BASE_ROUTINE64,
             TranslateAddress: PTRANSLATE_ADDRESS_ROUTINE64,
-            Flags: DWORD
+            Flags: u32
         ) -> BOOL;
         fn SymFromInlineContextW(
             hProcess: HANDLE,
-            Address: DWORD64,
-            InlineContext: ULONG,
-            Displacement: PDWORD64,
-            Symbol: PSYMBOL_INFOW
+            Address: u64,
+            InlineContext: u32,
+            Displacement: *mut u64,
+            Symbol: *mut SYMBOL_INFOW
         ) -> BOOL;
         fn SymGetLineFromInlineContextW(
             hProcess: HANDLE,
-            dwAddr: DWORD64,
-            InlineContext: ULONG,
-            qwModuleBaseAddress: DWORD64,
-            pdwDisplacement: PDWORD,
-            Line: PIMAGEHLP_LINEW64
+            dwAddr: u64,
+            InlineContext: u32,
+            qwModuleBaseAddress: u64,
+            pdwDisplacement: *mut u32,
+            Line: *mut IMAGEHLP_LINEW64
         ) -> BOOL;
     }
 }
@@ -293,7 +265,7 @@ pub fn init() -> Result<Init, ()> {
         }
         debug_assert!(lock != 0);
         let lock = lock as HANDLE;
-        let r = WaitForSingleObjectEx(lock, INFINITE, FALSE);
+        let r = WaitForSingleObjectEx(lock, INFINITE, 0);
         debug_assert_eq!(r, 0);
         let ret = Init { lock };
 
@@ -335,7 +307,7 @@ pub fn init() -> Result<Init, ()> {
         // the time, but now that it's using this crate it means that someone will
         // get to initialization first and the other will pick up that
         // initialization.
-        DBGHELP.SymInitializeW().unwrap()(GetCurrentProcess(), ptr::null_mut(), TRUE);
+        DBGHELP.SymInitializeW().unwrap()(GetCurrentProcess(), ptr::null_mut(), 1);
         INITIALIZED = true;
         Ok(ret)
     }

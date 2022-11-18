@@ -334,8 +334,8 @@ impl<'a> SymbolName<'a> {
         };
 
         SymbolName {
-            bytes: bytes,
-            demangled: demangled,
+            bytes,
+            demangled,
             cpp_demangled: cpp,
         }
     }
