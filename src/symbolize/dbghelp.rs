@@ -71,7 +71,11 @@ impl Symbol<'_> {
 #[repr(C, align(8))]
 struct Aligned8<T>(T);
 
-pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol)) {
+pub unsafe fn resolve(
+    what: ResolveWhat<'_>,
+    _cache_capacity: usize,
+    cb: &mut dyn FnMut(&super::Symbol),
+) {
     // Ensure this process's symbols are initialized
     let dbghelp = match dbghelp::init() {
         Ok(dbghelp) => dbghelp,

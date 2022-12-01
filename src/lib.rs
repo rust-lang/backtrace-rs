@@ -113,8 +113,12 @@ extern crate alloc;
 pub use self::backtrace::{trace_unsynchronized, Frame};
 mod backtrace;
 
-pub use self::symbolize::{resolve_frame_unsynchronized, resolve_frame_unsynchronized_customized_cache};
-pub use self::symbolize::{resolve_unsynchronized, resolve_unsynchronized_customized_cache, Symbol, SymbolName};
+pub use self::symbolize::{
+    resolve_frame_unsynchronized, resolve_frame_unsynchronized_customized_cache,
+};
+pub use self::symbolize::{
+    resolve_unsynchronized, resolve_unsynchronized_customized_cache, Symbol, SymbolName,
+};
 mod symbolize;
 
 pub use self::types::BytesOrWideString;

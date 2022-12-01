@@ -238,7 +238,9 @@ struct LibrarySegment {
 
 // unsafe because this is required to be externally synchronized
 pub unsafe fn clear_symbol_cache() {
-    Cache::with_global(super::DEFAULT_MAPPINGS_CACHE_SIZE, |cache| cache.mappings.clear());
+    Cache::with_global(super::DEFAULT_MAPPINGS_CACHE_SIZE, |cache| {
+        cache.mappings.clear()
+    });
 }
 
 impl Cache {
@@ -300,7 +302,11 @@ impl Cache {
             .next()
     }
 
-    fn mapping_for_lib<'a>(&'a mut self, lib: usize, cache_capacity: usize) -> Option<&'a mut Context<'a>> {
+    fn mapping_for_lib<'a>(
+        &'a mut self,
+        lib: usize,
+        cache_capacity: usize,
+    ) -> Option<&'a mut Context<'a>> {
         let idx = self.mappings.iter().position(|(idx, _)| *idx == lib);
 
         // Invariant: after this conditional completes without early returning
@@ -333,7 +339,11 @@ impl Cache {
     }
 }
 
-pub unsafe fn resolve(what: ResolveWhat<'_>, cache_capacity: usize, cb: &mut dyn FnMut(&super::Symbol)) {
+pub unsafe fn resolve(
+    what: ResolveWhat<'_>,
+    cache_capacity: usize,
+    cb: &mut dyn FnMut(&super::Symbol),
+) {
     let addr = what.address_or_ip();
     let mut call = |sym: Symbol<'_>| {
         // Extend the lifetime of `sym` to `'static` since we are unfortunately

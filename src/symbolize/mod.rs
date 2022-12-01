@@ -64,7 +64,11 @@ pub fn resolve<F: FnMut(&Symbol)>(addr: *mut c_void, cb: F) {
 }
 /// Same as `resolve`, but the user can specified the shared libraries mapping cache capacity.
 #[cfg(feature = "std")]
-pub fn resolve_customized_cache<F: FnMut(&Symbol)>(cache_capacity: usize, addr: *mut c_void, cb: F) {
+pub fn resolve_customized_cache<F: FnMut(&Symbol)>(
+    cache_capacity: usize,
+    addr: *mut c_void,
+    cb: F,
+) {
     let _guard = crate::lock::lock();
     unsafe { resolve_unsynchronized_customized_cache(addr, cache_capacity, cb) }
 }
@@ -113,7 +117,11 @@ pub fn resolve_frame<F: FnMut(&Symbol)>(frame: &Frame, cb: F) {
 
 /// Same as `resolve_frame`, but the user can specified the shared libraries mapping cache capacity.
 #[cfg(feature = "std")]
-pub fn resolve_frame_customized_cache<F: FnMut(&Symbol)>(frame: &Frame, cb: F, cache_capacity: usize) {
+pub fn resolve_frame_customized_cache<F: FnMut(&Symbol)>(
+    frame: &Frame,
+    cb: F,
+    cache_capacity: usize,
+) {
     let _guard = crate::lock::lock();
     unsafe { resolve_frame_unsynchronized_customized_cache(frame, cache_capacity, cb) }
 }
@@ -174,11 +182,18 @@ pub unsafe fn resolve_unsynchronized<F>(addr: *mut c_void, mut cb: F)
 where
     F: FnMut(&Symbol),
 {
-    imp::resolve(ResolveWhat::Address(addr), DEFAULT_MAPPINGS_CACHE_SIZE, &mut cb)
+    imp::resolve(
+        ResolveWhat::Address(addr),
+        DEFAULT_MAPPINGS_CACHE_SIZE,
+        &mut cb,
+    )
 }
 /// Same as `resolve_unsynchronized`, but the user can specified the shared libraries mapping cache capacity.
-pub unsafe fn resolve_unsynchronized_customized_cache<F>(addr: *mut c_void, cache_capacity: usize, mut cb: F)
-where
+pub unsafe fn resolve_unsynchronized_customized_cache<F>(
+    addr: *mut c_void,
+    cache_capacity: usize,
+    mut cb: F,
+) where
     F: FnMut(&Symbol),
 {
     imp::resolve(ResolveWhat::Address(addr), cache_capacity, &mut cb)
@@ -197,12 +212,19 @@ pub unsafe fn resolve_frame_unsynchronized<F>(frame: &Frame, mut cb: F)
 where
     F: FnMut(&Symbol),
 {
-    imp::resolve(ResolveWhat::Frame(frame), DEFAULT_MAPPINGS_CACHE_SIZE, &mut cb)
+    imp::resolve(
+        ResolveWhat::Frame(frame),
+        DEFAULT_MAPPINGS_CACHE_SIZE,
+        &mut cb,
+    )
 }
 
 /// Same as `resolve_frame_unsynchronized`, but the user can specified the shared libraries mapping cache capacity.
-pub unsafe fn resolve_frame_unsynchronized_customized_cache<F>(frame: &Frame, cache_capacity: usize, mut cb: F)
-where
+pub unsafe fn resolve_frame_unsynchronized_customized_cache<F>(
+    frame: &Frame,
+    cache_capacity: usize,
+    mut cb: F,
+) where
     F: FnMut(&Symbol),
 {
     imp::resolve(ResolveWhat::Frame(frame), cache_capacity, &mut cb)

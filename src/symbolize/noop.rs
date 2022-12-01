@@ -5,7 +5,12 @@ use super::{BytesOrWideString, ResolveWhat, SymbolName};
 use core::ffi::c_void;
 use core::marker;
 
-pub unsafe fn resolve(_addr: ResolveWhat<'_>, _cb: &mut dyn FnMut(&super::Symbol)) {}
+pub unsafe fn resolve(
+    _addr: ResolveWhat<'_>,
+    _cache_capacity: usize,
+    _cb: &mut dyn FnMut(&super::Symbol),
+) {
+}
 
 pub struct Symbol<'a> {
     _marker: marker::PhantomData<&'a i32>,

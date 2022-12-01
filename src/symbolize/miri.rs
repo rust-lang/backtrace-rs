@@ -5,7 +5,11 @@ use super::super::backtrace::miri::{resolve_addr, Frame};
 use super::BytesOrWideString;
 use super::{ResolveWhat, SymbolName};
 
-pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol)) {
+pub unsafe fn resolve(
+    what: ResolveWhat<'_>,
+    _cache_capacity: usize,
+    cb: &mut dyn FnMut(&super::Symbol),
+) {
     let sym = match what {
         ResolveWhat::Address(addr) => Symbol {
             inner: resolve_addr(addr),
