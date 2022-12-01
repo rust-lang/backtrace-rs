@@ -52,8 +52,6 @@ cfg_if::cfg_if! {
 
 mod stash;
 
-const MAPPINGS_CACHE_SIZE: usize = 4;
-
 struct Mapping {
     // 'static lifetime is a lie to hack around lack of support for self-referential structs.
     cx: Context<'static>,
@@ -240,19 +238,19 @@ struct LibrarySegment {
 
 // unsafe because this is required to be externally synchronized
 pub unsafe fn clear_symbol_cache() {
-    Cache::with_global(|cache| cache.mappings.clear());
+    Cache::with_global(super::DEFAULT_MAPPINGS_CACHE_SIZE, |cache| cache.mappings.clear());
 }
 
 impl Cache {
-    fn new() -> Cache {
+    fn new(cache_capacity: usize) -> Cache {
         Cache {
-            mappings: Vec::with_capacity(MAPPINGS_CACHE_SIZE),
+            mappings: Vec::with_capacity(cache_capacity),
             libraries: native_libraries(),
         }
     }
 
     // unsafe because this is required to be externally synchronized
-    unsafe fn with_global(f: impl FnOnce(&mut Self)) {
+    unsafe fn with_global(cache_capacity: usize, f: impl FnOnce(&mut Self)) {
         // A very small, very simple LRU cache for debug info mappings.
         //
         // The hit rate should be very high, since the typical stack doesn't cross
@@ -265,7 +263,7 @@ impl Cache {
         // never happen, and symbolicating backtraces would be ssssllllooooowwww.
         static mut MAPPINGS_CACHE: Option<Cache> = None;
 
-        f(MAPPINGS_CACHE.get_or_insert_with(|| Cache::new()))
+        f(MAPPINGS_CACHE.get_or_insert_with(|| Cache::new(cache_capacity)))
     }
 
     fn avma_to_svma(&self, addr: *const u8) -> Option<(usize, *const u8)> {
@@ -302,7 +300,7 @@ impl Cache {
             .next()
     }
 
-    fn mapping_for_lib<'a>(&'a mut self, lib: usize) -> Option<&'a mut Context<'a>> {
+    fn mapping_for_lib<'a>(&'a mut self, lib: usize, cache_capacity: usize) -> Option<&'a mut Context<'a>> {
         let idx = self.mappings.iter().position(|(idx, _)| *idx == lib);
 
         // Invariant: after this conditional completes without early returning
@@ -321,7 +319,7 @@ impl Cache {
             let name = &self.libraries[lib].name;
             let mapping = Mapping::new(name.as_ref())?;
 
-            if self.mappings.len() == MAPPINGS_CACHE_SIZE {
+            if self.mappings.len() == cache_capacity {
                 self.mappings.pop();
             }
 
@@ -335,7 +333,7 @@ impl Cache {
     }
 }
 
-pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol)) {
+pub unsafe fn resolve(what: ResolveWhat<'_>, cache_capacity: usize, cb: &mut dyn FnMut(&super::Symbol)) {
     let addr = what.address_or_ip();
     let mut call = |sym: Symbol<'_>| {
         // Extend the lifetime of `sym` to `'static` since we are unfortunately
@@ -345,7 +343,7 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
         (cb)(&super::Symbol { inner: sym });
     };
 
-    Cache::with_global(|cache| {
+    Cache::with_global(cache_capacity, |cache| {
         let (lib, addr) = match cache.avma_to_svma(addr as *const u8) {
             Some(pair) => pair,
             None => return,
@@ -353,7 +351,7 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
 
         // Finally, get a cached mapping or create a new mapping for this file, and
         // evaluate the DWARF info to find the file/line/name for this address.
-        let cx = match cache.mapping_for_lib(lib) {
+        let cx = match cache.mapping_for_lib(lib, cache_capacity) {
             Some(cx) => cx,
             None => return,
         };

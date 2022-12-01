@@ -113,8 +113,8 @@ extern crate alloc;
 pub use self::backtrace::{trace_unsynchronized, Frame};
 mod backtrace;
 
-pub use self::symbolize::resolve_frame_unsynchronized;
-pub use self::symbolize::{resolve_unsynchronized, Symbol, SymbolName};
+pub use self::symbolize::{resolve_frame_unsynchronized, resolve_frame_unsynchronized_customized_cache};
+pub use self::symbolize::{resolve_unsynchronized, resolve_unsynchronized_customized_cache, Symbol, SymbolName};
 mod symbolize;
 
 pub use self::types::BytesOrWideString;
@@ -129,7 +129,7 @@ pub use print::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         pub use self::backtrace::trace;
-        pub use self::symbolize::{resolve, resolve_frame};
+        pub use self::symbolize::{resolve, resolve_customized_cache, resolve_frame, resolve_frame_customized_cache};
         pub use self::capture::{Backtrace, BacktraceFrame, BacktraceSymbol};
         mod capture;
     }
