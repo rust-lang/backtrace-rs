@@ -41,6 +41,7 @@ cfg_if::cfg_if! {
         target_os = "openbsd",
         target_os = "solaris",
         target_os = "illumos",
+        target_os = "nto",
     ))] {
         #[path = "gimli/mmap_unix.rs"]
         mod mmap;
@@ -178,6 +179,7 @@ cfg_if::cfg_if! {
             target_os = "fuchsia",
             target_os = "freebsd",
             target_os = "openbsd",
+            target_os = "nto",
             all(target_os = "android", feature = "dl_iterate_phdr"),
         ),
         not(target_env = "uclibc"),
