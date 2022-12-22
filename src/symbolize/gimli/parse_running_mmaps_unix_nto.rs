@@ -48,7 +48,14 @@ impl FromStr for MapsEntry {
         let inode = hex(ino_str)?;
         let pathname = pathname_str.into();
 
-        Ok(MapsEntry { address, perms, offset, dev, inode, pathname })
+        Ok(MapsEntry {
+            address,
+            perms,
+            offset,
+            dev,
+            inode,
+            pathname,
+        })
     }
 }
 

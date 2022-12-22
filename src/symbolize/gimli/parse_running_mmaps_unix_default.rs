@@ -57,7 +57,14 @@ impl FromStr for MapsEntry {
         let inode = hex(inode_str)?;
         let pathname = pathname_str.into();
 
-        Ok(MapsEntry { address, perms, offset, dev, inode, pathname })
+        Ok(MapsEntry {
+            address,
+            perms,
+            offset,
+            dev,
+            inode,
+            pathname,
+        })
     }
 }
 
@@ -95,7 +102,9 @@ fn check_maps_entry_parsing_64bit() {
         }
     );
     assert_eq!(
-        "35b1a21000-35b1a22000 rw-p 00000000 00:00 0".parse::<MapsEntry>().unwrap(),
+        "35b1a21000-35b1a22000 rw-p 00000000 00:00 0"
+            .parse::<MapsEntry>()
+            .unwrap(),
         MapsEntry {
             address: (0x35b1a21000, 0x35b1a22000),
             perms: ['r', 'w', '-', 'p'],
@@ -145,7 +154,9 @@ fn check_maps_entry_parsing_32bit() {
         }
     );
     assert_eq!(
-        "b7e02000-b7e03000 rw-p 00000000 00:00 0".parse::<MapsEntry>().unwrap(),
+        "b7e02000-b7e03000 rw-p 00000000 00:00 0"
+            .parse::<MapsEntry>()
+            .unwrap(),
         MapsEntry {
             address: (0xb7e02000, 0xb7e03000),
             perms: ['r', 'w', '-', 'p'],
