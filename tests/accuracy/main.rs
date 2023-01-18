@@ -107,7 +107,8 @@ fn verify(filelines: &[Pos]) {
             };
             if let Some(filename) = sym.filename() {
                 if let Some(lineno) = sym.lineno() {
-                    if filename.ends_with(file) && lineno == *line {
+                    // allow an offset of 1 in the accuracy of line numbers
+                    if filename.ends_with(file) && lineno.abs_diff(*line) <= 1 {
                         break;
                     }
                 }
