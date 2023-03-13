@@ -8,7 +8,7 @@ use super::mystd::str::FromStr;
 use super::{OsString, String, Vec};
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct MapsEntry {
+pub(super) struct MapsEntry {
     /// start (inclusive) and limit (exclusive) of address range.
     address: (usize, usize),
     /// The perms field are the permissions for the entry
@@ -69,7 +69,7 @@ fn read_file(file: &str) -> Result<String, String> {
     Ok(buf)
 }
 
-pub fn parse_maps() -> Result<Vec<MapsEntry>, String> {
+pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, String> {
     let (file, skip) = config();
     let content = read_file(file)?;
     parse_maps_lines(&content, skip)
