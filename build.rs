@@ -28,9 +28,7 @@ fn build_android() {
     let expansion = match cc::Build::new().file(&android_api_c).try_expand() {
         Ok(result) => result,
         Err(e) => {
-            eprintln!(
-                "warning: android version detection failed while running C compiler: {e}",
-            );
+            eprintln!("warning: android version detection failed while running C compiler: {e}");
             return;
         }
     };
