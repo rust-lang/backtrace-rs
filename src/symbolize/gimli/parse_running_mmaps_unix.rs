@@ -18,7 +18,7 @@ pub(super) struct MapsEntry {
     /// x = execute
     /// s = shared
     /// p = private (copy on write)
-    perms: [char; 4],
+    perms: [u8; 4],
     /// Offset into the file (or "whatever").
     offset: usize,
     /// device (major, minor)
@@ -102,14 +102,12 @@ impl FromStr for MapsEntry {
         } else {
             return Err("Couldn't parse address range");
         };
-        let perms: [char; 4] = {
-            let mut chars = perms_str.chars();
-            let mut c = || chars.next().ok_or("insufficient perms");
-            let perms = [c()?, c()?, c()?, c()?];
-            if chars.next().is_some() {
-                return Err("too many perms");
-            }
-            perms
+        let perms = if let &[r, w, x, p, ..] = perms_str.as_bytes() {
+            // If a system in the future adds a 5th field to the permission list,
+            // there's no reason to assume previous fields were invalidated.
+            [r, w, x, p]
+        } else {
+            return Err("less than 4 perms");
         };
         let offset = hex(offset_str)?;
         let dev = if let Some((major, minor)) = dev_str.split_once(':') {
@@ -142,7 +140,7 @@ fn check_maps_entry_parsing_64bit() {
             .unwrap(),
         MapsEntry {
             address: (0xffffffffff600000, 0xffffffffff601000),
-            perms: ['-', '-', 'x', 'p'],
+            perms: *b"--xp",
             offset: 0x00000000,
             dev: (0x00, 0x00),
             inode: 0x0,
@@ -157,7 +155,7 @@ fn check_maps_entry_parsing_64bit() {
             .unwrap(),
         MapsEntry {
             address: (0x7f5985f46000, 0x7f5985f48000),
-            perms: ['r', 'w', '-', 'p'],
+            perms: *b"rw-p",
             offset: 0x00039000,
             dev: (0x103, 0x06),
             inode: 0x76021795,
@@ -170,7 +168,7 @@ fn check_maps_entry_parsing_64bit() {
             .unwrap(),
         MapsEntry {
             address: (0x35b1a21000, 0x35b1a22000),
-            perms: ['r', 'w', '-', 'p'],
+            perms: *b"rw-p",
             offset: 0x00000000,
             dev: (0x00, 0x00),
             inode: 0x0,
@@ -194,7 +192,7 @@ fn check_maps_entry_parsing_32bit() {
             .unwrap(),
         MapsEntry {
             address: (0x08056000, 0x08077000),
-            perms: ['r', 'w', '-', 'p'],
+            perms: *b"rw-p",
             offset: 0x00000000,
             dev: (0x00, 0x00),
             inode: 0x0,
@@ -209,7 +207,7 @@ fn check_maps_entry_parsing_32bit() {
             .unwrap(),
         MapsEntry {
             address: (0xb7c79000, 0xb7e02000),
-            perms: ['r', '-', '-', 'p'],
+            perms: *b"r--p",
             offset: 0x00000000,
             dev: (0x08, 0x01),
             inode: 0x60662705,
@@ -222,7 +220,7 @@ fn check_maps_entry_parsing_32bit() {
             .unwrap(),
         MapsEntry {
             address: (0xb7e02000, 0xb7e03000),
-            perms: ['r', 'w', '-', 'p'],
+            perms: *b"rw-p",
             offset: 0x00000000,
             dev: (0x00, 0x00),
             inode: 0x0,
