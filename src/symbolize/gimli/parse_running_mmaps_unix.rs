@@ -69,10 +69,12 @@ pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
 }
 
 impl MapsEntry {
+    #[inline]
     pub(super) fn pathname(&self) -> &OsString {
         &self.pathname
     }
 
+    #[inline]
     pub(super) fn ip_matches(&self, ip: usize) -> bool {
         self.address.0 <= ip && ip < self.address.1
     }
@@ -85,6 +87,7 @@ impl FromStr for MapsEntry {
     // e.g.: "ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]"
     // e.g.: "7f5985f46000-7f5985f48000 rw-p 00039000 103:06 76021795                  /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
     // e.g.: "35b1a21000-35b1a22000 rw-p 00000000 00:00 0"
+    #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let missing_field = "failed to find all map fields";
         let parse_err = "failed to parse all map fields";
