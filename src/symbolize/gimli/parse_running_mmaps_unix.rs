@@ -86,34 +86,36 @@ impl FromStr for MapsEntry {
     // e.g.: "7f5985f46000-7f5985f48000 rw-p 00039000 103:06 76021795                  /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
     // e.g.: "35b1a21000-35b1a22000 rw-p 00000000 00:00 0"
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let missing_field = "failed to find all map fields";
+        let parse_err = "failed to parse all map fields";
         let mut parts = s
             .split(' ') // space-separated fields
             .filter(|s| s.len() > 0); // multiple spaces implies empty strings that need to be skipped.
-        let range_str = parts.next().ok_or("Couldn't find address")?;
-        let perms_str = parts.next().ok_or("Couldn't find permissions")?;
-        let offset_str = parts.next().ok_or("Couldn't find offset")?;
-        let dev_str = parts.next().ok_or("Couldn't find dev")?;
-        let inode_str = parts.next().ok_or("Couldn't find inode")?;
+        let range_str = parts.next().ok_or(missing_field)?;
+        let perms_str = parts.next().ok_or(missing_field)?;
+        let offset_str = parts.next().ok_or(missing_field)?;
+        let dev_str = parts.next().ok_or(missing_field)?;
+        let inode_str = parts.next().ok_or(missing_field)?;
         let pathname_str = parts.next().unwrap_or(""); // pathname may be omitted.
 
-        let hex = |s| usize::from_str_radix(s, 16).map_err(|_| "Couldn't parse hex number");
+        let hex = |s| usize::from_str_radix(s, 16).map_err(|_| parse_err);
         let address = if let Some((start, limit)) = range_str.split_once('-') {
             (hex(start)?, hex(limit)?)
         } else {
-            return Err("Couldn't parse address range");
+            return Err(parse_err);
         };
         let _perms = if let &[r, w, x, p, ..] = perms_str.as_bytes() {
             // If a system in the future adds a 5th field to the permission list,
             // there's no reason to assume previous fields were invalidated.
             [r, w, x, p]
         } else {
-            return Err("less than 4 perms");
+            return Err(parse_err);
         };
         let _offset = hex(offset_str)?;
         let _dev = if let Some((major, minor)) = dev_str.split_once(':') {
             (hex(major)?, hex(minor)?)
         } else {
-            return Err("Couldn't parse dev");
+            return Err(parse_err);
         };
         let _inode = hex(inode_str)?;
         let pathname = pathname_str.into();
