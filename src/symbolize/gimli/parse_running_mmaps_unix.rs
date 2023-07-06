@@ -99,8 +99,7 @@ impl FromStr for MapsEntry {
         let missing_field = "failed to find all map fields";
         let parse_err = "failed to parse all map fields";
         let mut parts = s
-            .split(' ') // space-separated fields
-            .filter(|s| s.len() > 0); // multiple spaces implies empty strings that need to be skipped.
+            .split_ascii_whitespace();
         let range_str = parts.next().ok_or(missing_field)?;
         let perms_str = parts.next().ok_or(missing_field)?;
         let offset_str = parts.next().ok_or(missing_field)?;
