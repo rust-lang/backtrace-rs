@@ -113,20 +113,20 @@ impl FromStr for MapsEntry {
         } else {
             return Err(parse_err);
         };
-        // let _perms = if let &[r, w, x, p, ..] = perms_str.as_bytes() {
-        //     // If a system in the future adds a 5th field to the permission list,
-        //     // there's no reason to assume previous fields were invalidated.
-        //     [r, w, x, p]
-        // } else {
-        //     return Err(parse_err);
-        // };
-        // let _offset = hex(offset_str)?;
-        // let _dev = if let Some((major, minor)) = dev_str.split_once(':') {
-        //     (hex(major)?, hex(minor)?)
-        // } else {
-        //     return Err(parse_err);
-        // };
-        // let _inode = hex(inode_str)?;
+        let _perms = if let &[r, w, x, p, ..] = perms_str.as_bytes() {
+            // If a system in the future adds a 5th field to the permission list,
+            // there's no reason to assume previous fields were invalidated.
+            [r, w, x, p]
+        } else {
+            return Err(parse_err);
+        };
+        let _offset = hex(offset_str)?;
+        let _dev = if let Some((major, minor)) = dev_str.split_once(':') {
+            (hex(major)?, hex(minor)?)
+        } else {
+            return Err(parse_err);
+        };
+        let _inode = hex(inode_str)?;
         let pathname = pathname_str.into();
 
         Ok(MapsEntry {
