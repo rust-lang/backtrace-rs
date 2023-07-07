@@ -20,7 +20,7 @@ pub(super) struct MapsEntry {
     /// x = execute
     /// s = shared
     /// p = private (copy on write)
-    perms: [char; 4],
+    // perms: [char; 4],
     /// Offset into the file (or "whatever").
     // offset: u64,
     /// device (major, minor)
@@ -115,7 +115,7 @@ impl FromStr for MapsEntry {
         } else {
             return Err(parse_err);
         };
-        let perms: [char; 4] = {
+        let _perms: [char; 4] = {
             let mut chars = perms_str.chars();
             let mut c = || chars.next().ok_or("insufficient perms");
             let perms = [c()?, c()?, c()?, c()?];
@@ -135,7 +135,7 @@ impl FromStr for MapsEntry {
 
         Ok(MapsEntry {
             address,
-            perms,
+            // perms,
             // offset,
             // dev,
             // inode,
