@@ -1,3 +1,4 @@
+// FOO
 //! A library for acquiring a backtrace at runtime
 //!
 //! This library is meant to supplement the `RUST_BACKTRACE=1` support of the
