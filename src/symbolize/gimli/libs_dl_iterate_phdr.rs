@@ -36,10 +36,9 @@ fn infer_current_exe(
     #[cfg(not(target_os = "hurd"))]
     if let Some(entries) = maps {
         let opt_path = entries
-            .iter()
-            .find(|e| e.ip_matches(base_addr) && e.pathname().len() > 0)
-            .map(|e| e.pathname())
-            .cloned();
+            .into_iter()
+            .find(|e| e.ip_matches(base_addr) && !e.pathname.is_empty())
+            .map(|e| e.pathname);
         if let Some(path) = opt_path {
             return path;
         }
