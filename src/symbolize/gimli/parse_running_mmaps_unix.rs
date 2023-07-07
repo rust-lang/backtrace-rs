@@ -56,13 +56,14 @@ pub(super) struct MapsEntry {
 }
 
 pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
+    let failed_io_err = "couldn't read /proc/self/maps";
     let mut v = Vec::new();
     let mut proc_self_maps =
-        File::open("/proc/self/maps").map_err(|_| "Couldn't open /proc/self/maps")?;
+        File::open("/proc/self/maps").map_err(|_| failed_io_err)?;
     let mut buf = String::new();
     let _bytes_read = proc_self_maps
         .read_to_string(&mut buf)
-        .map_err(|_| "Couldn't read /proc/self/maps")?;
+        .map_err(|_| failed_io_err)?;
     for line in buf.lines() {
         v.push(line.parse()?);
     }
