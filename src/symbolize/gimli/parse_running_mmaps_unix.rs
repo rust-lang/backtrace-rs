@@ -71,10 +71,12 @@ pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
 }
 
 impl MapsEntry {
+    #[inline]
     pub(super) fn pathname(&self) -> &OsString {
         &self.pathname
     }
 
+    #[inline]
     pub(super) fn ip_matches(&self, ip: usize) -> bool {
         self.address.0 <= ip && ip < self.address.1
     }
