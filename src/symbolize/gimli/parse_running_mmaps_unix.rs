@@ -3,9 +3,9 @@
 // general purpose, but it hasn't been tested elsewhere.
 
 use super::mystd::fs::File;
-use super::mystd::io::Read;
+use super::mystd::io::{self, BufRead, BufReader, ErrorKind};
 use super::mystd::str::FromStr;
-use super::{OsString, String, Vec};
+use super::OsString;
 
 #[derive(PartialEq, Eq, Debug)]
 pub(super) struct MapsEntry {
@@ -53,19 +53,17 @@ pub(super) struct MapsEntry {
     pathname: OsString,
 }
 
-pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
-    let failed_io_err = "couldn't read /proc/self/maps";
-    let mut v = Vec::new();
-    let mut proc_self_maps = File::open("/proc/self/maps").map_err(|_| failed_io_err)?;
-    let mut buf = String::new();
-    let _bytes_read = proc_self_maps
-        .read_to_string(&mut buf)
-        .map_err(|_| failed_io_err)?;
-    for line in buf.lines() {
-        v.push(line.parse()?);
-    }
-
-    Ok(v)
+pub(super) fn parse_maps() -> Option<impl Iterator<Item = Result<MapsEntry, io::Error>>> {
+    let proc_self_maps = match File::open("/proc/self/maps") {
+        Ok(f) => f,
+        Err(_) => return None,
+    };
+    let buf_read = BufReader::new(proc_self_maps);
+    Some(
+        buf_read
+            .lines()
+            .map(|res| res.and_then(|s| s.parse().map_err(|e| io::Error::from(e)))),
+    )
 }
 
 impl MapsEntry {
@@ -81,15 +79,15 @@ impl MapsEntry {
 }
 
 impl FromStr for MapsEntry {
-    type Err = &'static str;
+    type Err = io::ErrorKind;
 
     // Format: address perms offset dev inode pathname
     // e.g.: "ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]"
     // e.g.: "7f5985f46000-7f5985f48000 rw-p 00039000 103:06 76021795                  /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
     // e.g.: "35b1a21000-35b1a22000 rw-p 00000000 00:00 0"
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let missing_field = "failed to find all map fields";
-        let parse_err = "failed to parse all map fields";
+        let missing_field = ErrorKind::NotFound;
+        let parse_err = ErrorKind::InvalidData;
         let mut parts = s.split_ascii_whitespace();
         let range_str = parts.next().ok_or(missing_field)?;
         let perms_str = parts.next().ok_or(missing_field)?;
