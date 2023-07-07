@@ -79,7 +79,7 @@ impl MapsEntry {
 
     #[inline]
     pub(super) fn ip_matches(&self, ip: usize) -> bool {
-        self.address.0 <= ip && ip < self.address.1
+        (self.address.0 <= ip) & (ip < self.address.1)
     }
 
     #[cfg(target_os = "android")]

@@ -257,7 +257,7 @@ impl<'a> Object<'a> {
             .iter()
             .filter_map(|header| {
                 let name = self.sections.section_name(self.endian, header).ok()?;
-                if name.starts_with(b".zdebug_") && &name[8..] == debug_name {
+                if name.starts_with(b".zdebug_") & (&name[8..] == debug_name) {
                     Some(header)
                 } else {
                     None
@@ -287,7 +287,7 @@ impl<'a> Object<'a> {
             Err(i) => i.checked_sub(1)?,
         };
         let sym = self.syms.get(i)?;
-        if sym.address <= addr && addr <= sym.address + sym.size {
+        if (sym.address <= addr) & (addr <= sym.address + sym.size) {
             self.strings.get(sym.name).ok()
         } else {
             None
@@ -302,7 +302,7 @@ impl<'a> Object<'a> {
         for section in self.sections.iter() {
             if let Ok(Some(mut notes)) = section.notes(self.endian, self.data) {
                 while let Ok(Some(note)) = notes.next() {
-                    if note.name() == ELF_NOTE_GNU && note.n_type(self.endian) == NT_GNU_BUILD_ID {
+                    if (note.name() == ELF_NOTE_GNU) & (note.n_type(self.endian) == NT_GNU_BUILD_ID) {
                         return Some(note.desc());
                     }
                 }
@@ -353,7 +353,7 @@ fn decompress_zlib(input: &[u8], output: &mut [u8]) -> Option<()> {
         0,
         TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF | TINFL_FLAG_PARSE_ZLIB_HEADER,
     );
-    if status == TINFLStatus::Done && in_read == input.len() && out_read == output.len() {
+    if (status == TINFLStatus::Done) & (in_read == input.len()) & (out_read == output.len()) {
         Some(())
     } else {
         None
