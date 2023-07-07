@@ -50,7 +50,7 @@ pub(super) struct MapsEntry {
     /// in general the pathname may be ambiguous. (I.e. you cannot tell if the
     /// denoted filename actually ended with the text "(deleted)", or if that
     /// was added by the maps rendering.
-    pub(super) pathname: OsString,
+    pathname: OsString,
 }
 
 pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
@@ -70,6 +70,11 @@ pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
 }
 
 impl MapsEntry {
+    #[inline]
+    pub(super) fn pathname(&self) -> &OsString {
+        &self.pathname
+    }
+
     #[inline]
     pub(super) fn ip_matches(&self, ip: usize) -> bool {
         self.address.0 <= ip && ip < self.address.1
