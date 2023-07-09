@@ -1,0 +1,24 @@
+# This workflow posts a comment after the Check binary size workflow finishes.
+# It is in a separate workflow to avoid running untrusted code with elevated permissions in the
+# Check binary size workflow
+name: Post binary size
+
+on:
+  workflow_run:
+    workflows: [Check binary size]
+    types:
+      - completed
+
+jobs:
+  post:
+    name: Post binary size
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+      - run: ls
