@@ -11,14 +11,12 @@
 
 #![allow(bad_style)]
 
-use super::super::{dbghelp, windows::*};
+use super::super::windows::*;
 use core::ffi::c_void;
-use core::mem;
 
 #[derive(Clone, Copy)]
-pub enum StackFrame {
-    New(STACKFRAME_EX),
-    Old(STACKFRAME64),
+pub struct StackFrame {
+    ip: *mut c_void,
 }
 
 #[derive(Clone, Copy)]
@@ -34,11 +32,11 @@ unsafe impl Sync for Frame {}
 
 impl Frame {
     pub fn ip(&self) -> *mut c_void {
-        self.addr_pc().Offset as *mut _
+        self.stack_frame.ip
     }
 
     pub fn sp(&self) -> *mut c_void {
-        self.addr_stack().Offset as *mut _
+        core::ptr::null_mut()
     }
 
     pub fn symbol_address(&self) -> *mut c_void {
@@ -48,60 +46,12 @@ impl Frame {
     pub fn module_base_address(&self) -> Option<*mut c_void> {
         Some(self.base_address)
     }
-
-    fn addr_pc(&self) -> &ADDRESS64 {
-        match self.stack_frame {
-            StackFrame::New(ref new) => &new.AddrPC,
-            StackFrame::Old(ref old) => &old.AddrPC,
-        }
-    }
-
-    fn addr_pc_mut(&mut self) -> &mut ADDRESS64 {
-        match self.stack_frame {
-            StackFrame::New(ref mut new) => &mut new.AddrPC,
-            StackFrame::Old(ref mut old) => &mut old.AddrPC,
-        }
-    }
-
-    fn addr_frame_mut(&mut self) -> &mut ADDRESS64 {
-        match self.stack_frame {
-            StackFrame::New(ref mut new) => &mut new.AddrFrame,
-            StackFrame::Old(ref mut old) => &mut old.AddrFrame,
-        }
-    }
-
-    fn addr_stack(&self) -> &ADDRESS64 {
-        match self.stack_frame {
-            StackFrame::New(ref new) => &new.AddrStack,
-            StackFrame::Old(ref old) => &old.AddrStack,
-        }
-    }
-
-    fn addr_stack_mut(&mut self) -> &mut ADDRESS64 {
-        match self.stack_frame {
-            StackFrame::New(ref mut new) => &mut new.AddrStack,
-            StackFrame::Old(ref mut old) => &mut old.AddrStack,
-        }
-    }
 }
-
-#[repr(C, align(16))] // required by `CONTEXT`, is a FIXME in winapi right now
-struct MyContext(CONTEXT);
 
 #[inline(always)]
 pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
     // Allocate necessary structures for doing the stack walk
     let process = GetCurrentProcess();
-    let thread = GetCurrentThread();
-
-    let mut context = mem::zeroed::<MyContext>();
-    RtlCaptureContext(&mut context.0);
-
-    // Ensure this process's symbols are initialized
-    let dbghelp = match dbghelp::init() {
-        Ok(dbghelp) => dbghelp,
-        Err(()) => return, // oh well...
-    };
 
     // On x86_64 and ARM64 we opt to not use the default `Sym*` functions from
     // dbghelp for getting the function table and module base. Instead we use
@@ -114,144 +64,58 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
     cfg_if::cfg_if! {
         if #[cfg(target_pointer_width = "64")] {
             use core::ptr;
-
-            unsafe extern "system" fn function_table_access(_process: HANDLE, addr: DWORD64) -> PVOID {
-                let mut base = 0;
-                RtlLookupFunctionEntry(addr, &mut base, ptr::null_mut()).cast()
-            }
-
             unsafe extern "system" fn get_module_base(_process: HANDLE, addr: DWORD64) -> DWORD64 {
                 let mut base = 0;
                 RtlLookupFunctionEntry(addr, &mut base, ptr::null_mut());
                 base
             }
         } else {
-            let function_table_access = dbghelp.SymFunctionTableAccess64();
+            use super::super::dbghelp;
+            // Ensure this process's symbols are initialized
+            let dbghelp = match dbghelp::init() {
+                Ok(dbghelp) => dbghelp,
+                Err(()) => return, // oh well...
+            };
             let get_module_base = dbghelp.SymGetModuleBase64();
         }
     }
 
-    let process_handle = GetCurrentProcess();
-
-    // Attempt to use `StackWalkEx` if we can, but fall back to `StackWalk64`
-    // since it's in theory supported on more systems.
-    match (*dbghelp.dbghelp()).StackWalkEx() {
-        Some(StackWalkEx) => {
-            let mut inner: STACKFRAME_EX = mem::zeroed();
-            inner.StackFrameSize = mem::size_of::<STACKFRAME_EX>() as DWORD;
-            let mut frame = super::Frame {
-                inner: Frame {
-                    stack_frame: StackFrame::New(inner),
-                    base_address: 0 as _,
-                },
-            };
-            let image = init_frame(&mut frame.inner, &context.0);
-            let frame_ptr = match &mut frame.inner.stack_frame {
-                StackFrame::New(ptr) => ptr as *mut STACKFRAME_EX,
-                _ => unreachable!(),
-            };
-
-            while StackWalkEx(
-                image as DWORD,
-                process,
-                thread,
-                frame_ptr,
-                &mut context.0 as *mut CONTEXT as *mut _,
-                None,
-                Some(function_table_access),
-                Some(get_module_base),
-                None,
-                0,
-            ) == TRUE
-            {
-                frame.inner.base_address = get_module_base(process_handle, frame.ip() as _) as _;
-
-                if !cb(&frame) {
-                    break;
-                }
+    extern "system" {
+        fn RtlCaptureStackBackTrace(
+            FramesToSkip: u32,
+            FramesToCapture: u32,
+            BackTrace: *mut *mut c_void,
+            BackTraceHash: *mut u32,
+        ) -> u16;
+    }
+    let mut frame = super::Frame {
+        inner: Frame {
+            stack_frame: StackFrame {
+                ip: core::ptr::null_mut(),
+            },
+            base_address: 0 as _,
+        },
+    };
+    const BUFFER_SIZE: u16 = 64;
+    let mut backtrace = [core::ptr::null_mut(); BUFFER_SIZE as usize];
+    let mut skip: u32 = 0;
+    loop {
+        let len = RtlCaptureStackBackTrace(
+            skip,
+            BUFFER_SIZE as u32,
+            backtrace.as_mut_ptr(),
+            core::ptr::null_mut(),
+        );
+        for &ip in backtrace[..len as usize].iter() {
+            frame.inner.stack_frame.ip = ip;
+            frame.inner.base_address = get_module_base(process, ip as _) as _;
+            if !cb(&frame) {
+                break;
             }
         }
-        None => {
-            let mut frame = super::Frame {
-                inner: Frame {
-                    stack_frame: StackFrame::Old(mem::zeroed()),
-                    base_address: 0 as _,
-                },
-            };
-            let image = init_frame(&mut frame.inner, &context.0);
-            let frame_ptr = match &mut frame.inner.stack_frame {
-                StackFrame::Old(ptr) => ptr as *mut STACKFRAME64,
-                _ => unreachable!(),
-            };
-
-            while dbghelp.StackWalk64()(
-                image as DWORD,
-                process,
-                thread,
-                frame_ptr,
-                &mut context.0 as *mut CONTEXT as *mut _,
-                None,
-                Some(function_table_access),
-                Some(get_module_base),
-                None,
-            ) == TRUE
-            {
-                frame.inner.base_address = get_module_base(process_handle, frame.ip() as _) as _;
-
-                if !cb(&frame) {
-                    break;
-                }
-            }
+        if len < BUFFER_SIZE || skip > u32::MAX - len as u32 {
+            break;
         }
+        skip += len as u32;
     }
-}
-
-#[cfg(target_arch = "x86_64")]
-fn init_frame(frame: &mut Frame, ctx: &CONTEXT) -> WORD {
-    frame.addr_pc_mut().Offset = ctx.Rip as u64;
-    frame.addr_pc_mut().Mode = AddrModeFlat;
-    frame.addr_stack_mut().Offset = ctx.Rsp as u64;
-    frame.addr_stack_mut().Mode = AddrModeFlat;
-    frame.addr_frame_mut().Offset = ctx.Rbp as u64;
-    frame.addr_frame_mut().Mode = AddrModeFlat;
-
-    IMAGE_FILE_MACHINE_AMD64
-}
-
-#[cfg(target_arch = "x86")]
-fn init_frame(frame: &mut Frame, ctx: &CONTEXT) -> WORD {
-    frame.addr_pc_mut().Offset = ctx.Eip as u64;
-    frame.addr_pc_mut().Mode = AddrModeFlat;
-    frame.addr_stack_mut().Offset = ctx.Esp as u64;
-    frame.addr_stack_mut().Mode = AddrModeFlat;
-    frame.addr_frame_mut().Offset = ctx.Ebp as u64;
-    frame.addr_frame_mut().Mode = AddrModeFlat;
-
-    IMAGE_FILE_MACHINE_I386
-}
-
-#[cfg(target_arch = "aarch64")]
-fn init_frame(frame: &mut Frame, ctx: &CONTEXT) -> WORD {
-    frame.addr_pc_mut().Offset = ctx.Pc as u64;
-    frame.addr_pc_mut().Mode = AddrModeFlat;
-    frame.addr_stack_mut().Offset = ctx.Sp as u64;
-    frame.addr_stack_mut().Mode = AddrModeFlat;
-    unsafe {
-        frame.addr_frame_mut().Offset = ctx.u.s().Fp as u64;
-    }
-    frame.addr_frame_mut().Mode = AddrModeFlat;
-    IMAGE_FILE_MACHINE_ARM64
-}
-
-#[cfg(target_arch = "arm")]
-fn init_frame(frame: &mut Frame, ctx: &CONTEXT) -> WORD {
-    frame.addr_pc_mut().Offset = ctx.Pc as u64;
-    frame.addr_pc_mut().Mode = AddrModeFlat;
-    frame.addr_stack_mut().Offset = ctx.Sp as u64;
-    frame.addr_stack_mut().Mode = AddrModeFlat;
-    unsafe {
-        frame.addr_frame_mut().Offset = ctx.R11 as u64;
-    }
-    frame.addr_frame_mut().Mode = AddrModeFlat;
-    IMAGE_FILE_MACHINE_ARMNT
 }

@@ -17,7 +17,7 @@
 
 #![allow(bad_style)]
 
-use super::super::{backtrace::StackFrame, dbghelp, windows::*};
+use super::super::{dbghelp, windows::*};
 use super::{BytesOrWideString, ResolveWhat, SymbolName};
 use core::char;
 use core::ffi::c_void;
@@ -80,40 +80,8 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
 
     match what {
         ResolveWhat::Address(_) => resolve_without_inline(&dbghelp, what.address_or_ip(), cb),
-        ResolveWhat::Frame(frame) => match &frame.inner.stack_frame {
-            StackFrame::New(frame) => resolve_with_inline(&dbghelp, frame, cb),
-            StackFrame::Old(_) => resolve_without_inline(&dbghelp, frame.ip(), cb),
-        },
+        ResolveWhat::Frame(frame) => resolve_without_inline(&dbghelp, frame.ip(), cb),
     }
-}
-
-unsafe fn resolve_with_inline(
-    dbghelp: &dbghelp::Init,
-    frame: &STACKFRAME_EX,
-    cb: &mut dyn FnMut(&super::Symbol),
-) {
-    do_resolve(
-        |info| {
-            dbghelp.SymFromInlineContextW()(
-                GetCurrentProcess(),
-                super::adjust_ip(frame.AddrPC.Offset as *mut _) as u64,
-                frame.InlineFrameContext,
-                &mut 0,
-                info,
-            )
-        },
-        |line| {
-            dbghelp.SymGetLineFromInlineContextW()(
-                GetCurrentProcess(),
-                super::adjust_ip(frame.AddrPC.Offset as *mut _) as u64,
-                frame.InlineFrameContext,
-                0,
-                &mut 0,
-                line,
-            )
-        },
-        cb,
-    )
 }
 
 unsafe fn resolve_without_inline(

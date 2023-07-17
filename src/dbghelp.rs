@@ -34,8 +34,8 @@ use core::ptr;
 mod dbghelp {
     use crate::windows::*;
     pub use winapi::um::dbghelp::{
-        StackWalk64, StackWalkEx, SymCleanup, SymFromAddrW, SymFunctionTableAccess64,
-        SymGetLineFromAddrW64, SymGetModuleBase64, SymGetOptions, SymInitializeW, SymSetOptions,
+        SymCleanup, SymFromAddrW, SymFunctionTableAccess64, SymGetLineFromAddrW64,
+        SymGetModuleBase64, SymGetOptions, SymInitializeW, SymSetOptions,
     };
 
     extern "system" {
@@ -165,17 +165,6 @@ dbghelp! {
             invade: BOOL
         ) -> BOOL;
         fn SymCleanup(handle: HANDLE) -> BOOL;
-        fn StackWalk64(
-            MachineType: DWORD,
-            hProcess: HANDLE,
-            hThread: HANDLE,
-            StackFrame: LPSTACKFRAME64,
-            ContextRecord: PVOID,
-            ReadMemoryRoutine: PREAD_PROCESS_MEMORY_ROUTINE64,
-            FunctionTableAccessRoutine: PFUNCTION_TABLE_ACCESS_ROUTINE64,
-            GetModuleBaseRoutine: PGET_MODULE_BASE_ROUTINE64,
-            TranslateAddress: PTRANSLATE_ADDRESS_ROUTINE64
-        ) -> BOOL;
         fn SymFunctionTableAccess64(
             hProcess: HANDLE,
             AddrBase: DWORD64
@@ -195,18 +184,6 @@ dbghelp! {
             dwAddr: DWORD64,
             pdwDisplacement: PDWORD,
             Line: PIMAGEHLP_LINEW64
-        ) -> BOOL;
-        fn StackWalkEx(
-            MachineType: DWORD,
-            hProcess: HANDLE,
-            hThread: HANDLE,
-            StackFrame: LPSTACKFRAME_EX,
-            ContextRecord: PVOID,
-            ReadMemoryRoutine: PREAD_PROCESS_MEMORY_ROUTINE64,
-            FunctionTableAccessRoutine: PFUNCTION_TABLE_ACCESS_ROUTINE64,
-            GetModuleBaseRoutine: PGET_MODULE_BASE_ROUTINE64,
-            TranslateAddress: PTRANSLATE_ADDRESS_ROUTINE64,
-            Flags: DWORD
         ) -> BOOL;
         fn SymFromInlineContextW(
             hProcess: HANDLE,
