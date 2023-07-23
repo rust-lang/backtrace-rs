@@ -18,12 +18,11 @@ pub(super) fn native_libraries() -> Vec<Library> {
 }
 
 fn infer_current_exe(base_addr: usize) -> OsString {
-    if let Ok(entries) = super::parse_running_mmaps::parse_maps() {
+    if let Some(entries) = super::parse_running_mmaps::parse_maps() {
         let opt_path = entries
-            .iter()
+            .filter_map(|e| e.ok())
             .find(|e| e.ip_matches(base_addr) && e.pathname().len() > 0)
-            .map(|e| e.pathname())
-            .cloned();
+            .map(|e| e.pathname().clone());
         if let Some(path) = opt_path {
             return path;
         }
