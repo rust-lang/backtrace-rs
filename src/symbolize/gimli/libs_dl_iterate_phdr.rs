@@ -25,7 +25,9 @@ fn infer_current_exe(base_addr: usize) -> OsString {
             .map(|e| e.pathname())
             .cloned();
         if let Some(path) = opt_path {
-            return path;
+            if path.as_bytes()[0] as char == '/' {
+                return path;
+            }
         }
     }
     env::current_exe().map(|e| e.into()).unwrap_or_default()
