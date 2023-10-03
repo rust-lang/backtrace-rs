@@ -89,7 +89,7 @@
 #![deny(missing_docs)]
 #![no_std]
 #![cfg_attr(
-    all(feature = "std", target_env = "sgx", target_vendor = "fortanix"),
+    all(target_env = "sgx", target_vendor = "fortanix"),
     feature(sgx_platform)
 )]
 #![warn(rust_2018_idioms)]

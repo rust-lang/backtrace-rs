@@ -225,6 +225,8 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         lineno: Option<u32>,
         colno: Option<u32>,
     ) -> fmt::Result {
+        let mut print_frame_ip = PrintFmt::Full == self.fmt.format;
+
         // No need to print "null" frames, it basically just means that the
         // system backtrace was a bit eager to trace back super far.
         if let PrintFmt::Short = self.fmt.format {
@@ -236,10 +238,11 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // To reduce TCB size in Sgx enclave, we do not want to implement symbol
         // resolution functionality.  Rather, we can print the offset of the
         // address here, which could be later mapped to correct function.
-        #[cfg(all(feature = "std", target_env = "sgx", target_vendor = "fortanix"))]
+        #[cfg(all(target_env = "sgx", target_vendor = "fortanix"))]
         {
             let image_base = std::os::fortanix_sgx::mem::image_base();
             frame_ip = usize::wrapping_sub(frame_ip as usize, image_base as _) as _;
+            print_frame_ip = true;
         }
 
         // Print the index of the frame as well as the optional instruction
@@ -247,12 +250,12 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // though we just print appropriate whitespace.
         if self.symbol_index == 0 {
             write!(self.fmt.fmt, "{:4}: ", self.fmt.frame_index)?;
-            if let PrintFmt::Full = self.fmt.format {
+            if print_frame_ip {
                 write!(self.fmt.fmt, "{:1$?} - ", frame_ip, HEX_WIDTH)?;
             }
         } else {
             write!(self.fmt.fmt, "      ")?;
-            if let PrintFmt::Full = self.fmt.format {
+            if print_frame_ip {
                 write!(self.fmt.fmt, "{:1$}", "", HEX_WIDTH + 3)?;
             }
         }
@@ -260,6 +263,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // Next up write out the symbol name, using the alternate formatting for
         // more information if we're a full backtrace. Here we also handle
         // symbols which don't have a name,
+        #[cfg(not(all(target_env = "sgx", target_vendor = "fortanix")))]
         match (symbol_name, &self.fmt.format) {
             (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "{:#}", name)?,
             (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "{}", name)?,
