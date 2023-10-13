@@ -29,7 +29,10 @@ BACKTRACE_RS_ANDROID_APIVERSION __ANDROID_API__
     let expansion = match cc::Build::new().file(&android_api_c).try_expand() {
         Ok(result) => result,
         Err(e) => {
-            eprintln!("warning: android version detection failed while running C compiler: {}", e);
+            eprintln!(
+                "warning: android version detection failed while running C compiler: {}",
+                e
+            );
             return None;
         }
     };
@@ -57,9 +60,8 @@ BACKTRACE_RS_ANDROID_APIVERSION __ANDROID_API__
 /// This depends on the use of a C preprocessor to find the API level in system
 /// headers. For build systems that do not want to use a C processor inside the
 /// execution of build scripts, the build system can specify the API level
-/// through a `--cfg` flag. If any is set, the C preprocessor will not be used:
-/// * android_api_at_least_0: No minimum API level is guaranteed.
-/// * android_api_at_least_21: The API level will be at least 21.
+/// through the `__ANDROID_API__` environment variable. When `--cfg=no_cc` is
+/// specified, the environment variable is used instead.
 fn build_android() {
     let version = {
         #[cfg(no_cc)]
