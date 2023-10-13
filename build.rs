@@ -9,7 +9,7 @@ pub fn main() {
     }
 }
 
-#[cfg(not(any(android_api_at_least_0, android_api_at_least_21)))]
+#[cfg(not(no_cc))]
 fn android_version_from_c_headers() -> Option<u32> {
     extern crate cc;
 
@@ -29,10 +29,7 @@ BACKTRACE_RS_ANDROID_APIVERSION __ANDROID_API__
     let expansion = match cc::Build::new().file(&android_api_c).try_expand() {
         Ok(result) => result,
         Err(e) => {
-            eprintln!(
-                "warning: android version detection failed while running C compiler: {}",
-                e
-            );
+            eprintln!("warning: android version detection failed while running C compiler: {}", e);
             return None;
         }
     };
@@ -64,24 +61,21 @@ BACKTRACE_RS_ANDROID_APIVERSION __ANDROID_API__
 /// * android_api_at_least_0: No minimum API level is guaranteed.
 /// * android_api_at_least_21: The API level will be at least 21.
 fn build_android() {
-    let at_least_21;
-    #[cfg(android_api_at_least_0)]
-    {
-        at_least_21 = false;
-    }
-    #[cfg(android_api_at_least_21)]
-    {
-        at_least_21 = true;
-    }
-    #[cfg(not(any(android_api_at_least_0, android_api_at_least_21)))]
-    {
-        at_least_21 = {
-            let version = android_version_from_c_headers().unwrap_or_default();
-            version >= 21
+    let version = {
+        #[cfg(no_cc)]
+        {
+            std::env::var("__ANDROID_API__")
+                .expect("__ANDROID_API__ must be set when building with `--cfg=no_cc`")
+                .parse::<u32>()
+                .expect("__ANDROID_API__ must be a number")
+        }
+        #[cfg(not(no_cc))]
+        {
+            android_version_from_c_headers().unwrap_or_default()
         }
     };
 
-    if at_least_21 {
+    if version >= 21 {
         println!("cargo:rustc-cfg=feature=\"dl_iterate_phdr\"");
     }
 }
