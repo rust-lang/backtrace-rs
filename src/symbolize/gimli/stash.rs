@@ -22,6 +22,7 @@ impl Stash {
 
     /// Allocates a buffer of the specified size and returns a mutable reference
     /// to it.
+    #[allow(clippy::mut_from_ref)] // This is an arena allocator.
     pub fn allocate(&self, size: usize) -> &mut [u8] {
         // SAFETY: this is the only function that ever constructs a mutable
         // reference to `self.buffers`.

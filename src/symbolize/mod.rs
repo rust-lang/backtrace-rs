@@ -58,6 +58,7 @@ use rustc_demangle::{try_demangle, Demangle};
 /// }
 /// ```
 #[cfg(feature = "std")]
+#[allow(clippy::not_unsafe_ptr_arg_deref)] // The unsafe does not come from ptr deref
 pub fn resolve<F: FnMut(&Symbol)>(addr: *mut c_void, cb: F) {
     let _guard = crate::lock::lock();
     unsafe { resolve_unsynchronized(addr, cb) }
