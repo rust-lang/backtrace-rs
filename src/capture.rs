@@ -54,7 +54,7 @@ pub struct BacktraceFrame {
 #[derive(Clone)]
 enum Frame {
     Raw(crate::Frame),
-    #[allow(dead_code)]
+    #[cfg_attr(not(feature = "serialize-rustc"), allow(dead_code))]
     Deserialized {
         ip: usize,
         symbol_address: usize,

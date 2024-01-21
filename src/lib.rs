@@ -96,7 +96,6 @@
 // When we're building as part of libstd, silence all warnings since they're
 // irrelevant as this crate is developed out-of-tree.
 #![cfg_attr(backtrace_in_libstd, allow(warnings))]
-#![cfg_attr(not(feature = "std"), allow(dead_code))]
 // We know this is deprecated, it's only here for back-compat reasons.
 #![cfg_attr(feature = "rustc-serialize", allow(deprecated))]
 
@@ -140,21 +139,6 @@ cfg_if::cfg_if! {
     }
 }
 
-#[allow(dead_code)]
-struct Bomb {
-    enabled: bool,
-}
-
-#[allow(dead_code)]
-impl Drop for Bomb {
-    fn drop(&mut self) {
-        if self.enabled {
-            panic!("cannot panic during the backtrace function");
-        }
-    }
-}
-
-#[allow(dead_code)]
 #[cfg(feature = "std")]
 mod lock {
     use std::boxed::Box;

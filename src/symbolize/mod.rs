@@ -111,7 +111,6 @@ pub enum ResolveWhat<'a> {
 }
 
 impl<'a> ResolveWhat<'a> {
-    #[allow(dead_code)]
     fn address_or_ip(&self) -> *mut c_void {
         match self {
             ResolveWhat::Address(a) => adjust_ip(*a),
@@ -313,11 +312,10 @@ cfg_if::cfg_if! {
 
 /// A wrapper around a symbol name to provide ergonomic accessors to the
 /// demangled name, the raw bytes, the raw string, etc.
-// Allow dead code for when the `cpp_demangle` feature is not enabled.
-#[allow(dead_code)]
 pub struct SymbolName<'a> {
     bytes: &'a [u8],
     demangled: Option<Demangle<'a>>,
+    #[cfg_attr(not(feature = "cpp_demangle"), allow(dead_code))]
     cpp_demangled: OptionCppSymbol<'a>,
 }
 

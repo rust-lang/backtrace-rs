@@ -15,8 +15,19 @@
 //!
 //! This is the default unwinding API for all non-Windows platforms currently.
 
-use super::super::Bomb;
 use core::ffi::c_void;
+
+struct Bomb {
+    enabled: bool,
+}
+
+impl Drop for Bomb {
+    fn drop(&mut self) {
+        if self.enabled {
+            panic!("cannot panic during the backtrace function");
+        }
+    }
+}
 
 pub enum Frame {
     Raw(*mut uw::_Unwind_Context),

@@ -64,7 +64,6 @@ struct Mapping {
 }
 
 enum Either<A, B> {
-    #[allow(dead_code)]
     A(A),
     B(B),
 }
@@ -319,6 +318,7 @@ fn create_mapping(lib: &Library) -> Option<Mapping> {
 }
 
 // unsafe because this is required to be externally synchronized
+#[cfg(feature = "std")]
 pub unsafe fn clear_symbol_cache() {
     Cache::with_global(|cache| cache.mappings.clear());
 }
@@ -522,6 +522,7 @@ impl Symbol<'_> {
         }
     }
 
+    #[cfg(feature = "std")]
     pub fn filename(&self) -> Option<&Path> {
         match self {
             Symbol::Frame { location, .. } => {
