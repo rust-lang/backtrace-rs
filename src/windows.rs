@@ -7,7 +7,7 @@
 //! This module largely exists to integrate into libstd itself where winapi is
 //! not currently available.
 
-#![allow(bad_style, dead_code, unused)]
+#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "verify-winapi")] {
@@ -235,8 +235,6 @@ ffi! {
         pub KdHelp: KDHELP64,
     }
 
-    pub type LPSTACKFRAME64 = *mut STACKFRAME64;
-
     #[repr(C)]
     pub struct STACKFRAME_EX {
         pub AddrPC: ADDRESS64,
@@ -294,7 +292,7 @@ ffi! {
     pub type PGET_MODULE_BASE_ROUTINE64 =
         Option<unsafe extern "system" fn(hProcess: HANDLE, Address: DWORD64) -> DWORD64>;
     pub type PFUNCTION_TABLE_ACCESS_ROUTINE64 =
-        Option<unsafe extern "system" fn(ahProcess: HANDLE, AddrBase: DWORD64) -> PVOID>;
+       Option<unsafe extern "system" fn(ahProcess: HANDLE, AddrBase: DWORD64) -> PVOID>;
     pub type PREAD_PROCESS_MEMORY_ROUTINE64 = Option<
         unsafe extern "system" fn(
             hProcess: HANDLE,
@@ -305,6 +303,7 @@ ffi! {
         ) -> BOOL,
     >;
 
+
     #[repr(C)]
     pub struct ADDRESS64 {
         pub Offset: DWORD64,
@@ -313,7 +312,6 @@ ffi! {
     }
 
     pub type LPADDRESS64 = *mut ADDRESS64;
-
     pub type ADDRESS_MODE = u32;
 
     #[repr(C)]
@@ -349,23 +347,9 @@ ffi! {
     }
 
     pub const MAX_SYM_NAME: usize = 2000;
-    pub const AddrModeFlat: ADDRESS_MODE = 3;
     pub const TRUE: BOOL = 1;
     pub const FALSE: BOOL = 0;
-    pub const PROCESS_QUERY_INFORMATION: DWORD = 0x400;
-    pub const IMAGE_FILE_MACHINE_ARM64: u16 = 43620;
-    pub const IMAGE_FILE_MACHINE_AMD64: u16 = 34404;
-    pub const IMAGE_FILE_MACHINE_I386: u16 = 332;
-    pub const IMAGE_FILE_MACHINE_ARMNT: u16 = 452;
-    pub const FILE_SHARE_READ: DWORD = 0x1;
-    pub const FILE_SHARE_WRITE: DWORD = 0x2;
-    pub const OPEN_EXISTING: DWORD = 0x3;
-    pub const GENERIC_READ: DWORD = 0x80000000;
     pub const INFINITE: DWORD = !0;
-    pub const PAGE_READONLY: DWORD = 2;
-    pub const FILE_MAP_READ: DWORD = 4;
-    pub const TH32CS_SNAPMODULE: DWORD = 0x00000008;
-    pub const INVALID_HANDLE_VALUE: HANDLE = -1isize as HANDLE;
     pub const MAX_MODULE_NAME32: usize = 255;
     pub const MAX_PATH: usize = 260;
 
@@ -377,11 +361,9 @@ ffi! {
     pub type HANDLE = *mut c_void;
     pub type PVOID = HANDLE;
     pub type PCWSTR = *const u16;
-    pub type LPSTR = *mut i8;
     pub type LPCSTR = *const i8;
     pub type PWSTR = *mut u16;
     pub type WORD = u16;
-    pub type USHORT = u16;
     pub type ULONG = u32;
     pub type ULONG64 = u64;
     pub type WCHAR = u16;
@@ -389,17 +371,11 @@ ffi! {
     pub type LPDWORD = *mut DWORD;
     pub type DWORDLONG = u64;
     pub type HMODULE = HINSTANCE;
-    pub type SIZE_T = usize;
-    pub type LPVOID = *mut c_void;
-    pub type LPCVOID = *const c_void;
-    pub type LPMODULEENTRY32W = *mut MODULEENTRY32W;
-    pub type PULONG = *mut ULONG;
     pub type PULONG64 = *mut ULONG64;
 
     #[link(name = "kernel32")]
     extern "system" {
         pub fn GetCurrentProcess() -> HANDLE;
-        pub fn GetCurrentThread() -> HANDLE;
         pub fn RtlCaptureContext(ContextRecord: PCONTEXT) -> ();
         pub fn LoadLibraryA(a: *const i8) -> HMODULE;
         pub fn GetProcAddress(h: HMODULE, name: *const i8) -> FARPROC;
@@ -416,34 +392,6 @@ ffi! {
             dwMilliseconds: DWORD,
             bAlertable: BOOL,
         ) -> DWORD;
-        pub fn CreateFileMappingA(
-            hFile: HANDLE,
-            lpFileMappingAttributes: LPSECURITY_ATTRIBUTES,
-            flProtect: DWORD,
-            dwMaximumSizeHigh: DWORD,
-            dwMaximumSizeLow: DWORD,
-            lpName: LPCSTR,
-        ) -> HANDLE;
-        pub fn MapViewOfFile(
-            hFileMappingObject: HANDLE,
-            dwDesiredAccess: DWORD,
-            dwFileOffsetHigh: DWORD,
-            dwFileOffsetLow: DWORD,
-            dwNumberOfBytesToMap: SIZE_T,
-        ) -> LPVOID;
-        pub fn UnmapViewOfFile(lpBaseAddress: LPCVOID) -> BOOL;
-        pub fn CreateToolhelp32Snapshot(
-            dwFlags: DWORD,
-            th32ProcessID: DWORD,
-        ) -> HANDLE;
-        pub fn Module32FirstW(
-            hSnapshot: HANDLE,
-            lpme: LPMODULEENTRY32W,
-        ) -> BOOL;
-        pub fn Module32NextW(
-            hSnapshot: HANDLE,
-            lpme: LPMODULEENTRY32W,
-        ) -> BOOL;
     }
 }
 

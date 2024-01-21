@@ -145,9 +145,9 @@ macro_rules! dbghelp {
 
         // Convenience proxy to use the cleanup locks to reference dbghelp
         // functions.
-        #[allow(dead_code)]
         impl Init {
-            $(pub fn $name(&self) -> $name {
+          $(#[allow(dead_code)]
+            pub fn $name(&self) -> $name {
                 unsafe {
                     DBGHELP.$name().unwrap()
                 }
@@ -155,7 +155,7 @@ macro_rules! dbghelp {
 
             pub fn dbghelp(&self) -> *mut Dbghelp {
                 unsafe {
-                    &mut DBGHELP
+                    ptr::addr_of_mut!(DBGHELP)
                 }
             }
         }
@@ -174,25 +174,6 @@ dbghelp! {
             path: PCWSTR,
             invade: BOOL
         ) -> BOOL;
-        fn StackWalk64(
-            MachineType: DWORD,
-            hProcess: HANDLE,
-            hThread: HANDLE,
-            StackFrame: LPSTACKFRAME64,
-            ContextRecord: PVOID,
-            ReadMemoryRoutine: PREAD_PROCESS_MEMORY_ROUTINE64,
-            FunctionTableAccessRoutine: PFUNCTION_TABLE_ACCESS_ROUTINE64,
-            GetModuleBaseRoutine: PGET_MODULE_BASE_ROUTINE64,
-            TranslateAddress: PTRANSLATE_ADDRESS_ROUTINE64
-        ) -> BOOL;
-        fn SymFunctionTableAccess64(
-            hProcess: HANDLE,
-            AddrBase: DWORD64
-        ) -> PVOID;
-        fn SymGetModuleBase64(
-            hProcess: HANDLE,
-            AddrBase: DWORD64
-        ) -> DWORD64;
         fn StackWalkEx(
             MachineType: DWORD,
             hProcess: HANDLE,
