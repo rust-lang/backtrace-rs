@@ -11,9 +11,11 @@ features = ['std']
 
 [profile.dev]
 debug = false
+strip = "debuginfo"
 
 [profile.test]
 debug = false
+strip = "debuginfo"
 
 [features]
 libbacktrace = ['backtrace/libbacktrace']
