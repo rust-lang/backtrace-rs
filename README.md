@@ -2,6 +2,7 @@
 
 [Documentation](https://docs.rs/backtrace)
 
+
 A library for acquiring backtraces at runtime for Rust. This library aims to
 enhance the support of the standard library by providing a programmatic
 interface to work with, but it also supports simply easily printing the current
