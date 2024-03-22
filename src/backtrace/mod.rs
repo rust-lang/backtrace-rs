@@ -67,7 +67,7 @@ pub unsafe fn trace_unsynchronized<F: FnMut(&Frame) -> bool>(mut cb: F) {
         for i in 0..(1024 * 1024) {
             (&super::CRITICALLY_IMPORTANT as *const u8)
                 .add(i)
-                .read_volatile()
+                .read_volatile();
         }
     };
     trace_imp(&mut cb)
