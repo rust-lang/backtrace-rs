@@ -100,6 +100,8 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
 
     // Call `RtlVirtualUnwind` to find the previous stack frame, walking until we hit ip = 0.
     while context.ip() != 0 {
+        // The base address of the module containing the function will be stored here
+        // when RtlLookupFunctionEntry returns successfully.
         let mut base = 0;
 
         let fn_entry = RtlLookupFunctionEntry(context.ip(), &mut base, ptr::null_mut());
@@ -109,7 +111,7 @@ pub unsafe fn trace(cb: &mut dyn FnMut(&super::Frame) -> bool) {
 
         let frame = super::Frame {
             inner: Frame {
-                base_address: fn_entry.cast::<c_void>(),
+                base_address: base as *mut c_void,
                 ip: context.ip() as *mut c_void,
                 sp: context.sp() as *mut c_void,
                 #[cfg(not(target_env = "gnu"))]
