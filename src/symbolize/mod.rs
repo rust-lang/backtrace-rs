@@ -205,7 +205,14 @@ impl Symbol {
     ///   utf-8).
     /// * The raw bytes for the symbol name can be accessed.
     pub fn name(&self) -> Option<SymbolName<'_>> {
-        self.inner.name()
+        self.name_raw().map(|s| s.demangle())
+    }
+
+    /// Returns the raw name of this function.
+    ///
+    /// This is similar to `name` but doesn't do any demangling.
+    pub fn name_raw(&self) -> Option<RawSymbolName<'_>> {
+        self.inner.name_raw()
     }
 
     /// Returns the starting address of this function.
@@ -353,6 +360,42 @@ impl<'a> SymbolName<'a> {
     /// Returns the raw symbol name as a list of bytes
     pub fn as_bytes(&self) -> &'a [u8] {
         self.bytes
+    }
+}
+
+/// A wrapper around the raw, mangled, symbol name.
+pub struct RawSymbolName<'a> {
+    bytes: &'a [u8],
+}
+impl<'a> RawSymbolName<'a> {
+    /// Creates a new raw symbol name from the raw underlying bytes.
+    pub fn new(bytes: &'a [u8]) -> RawSymbolName<'a> {
+        RawSymbolName { bytes }
+    }
+
+    /// Attempt to demangle the symbol name.
+    pub fn demangle(self) -> SymbolName<'a> {
+        SymbolName::new(self.bytes)
+    }
+
+    /// Returns the raw (mangled) symbol name as a `str` if the symbol is valid utf-8.
+    pub fn as_str(&self) -> Option<&'a str> {
+        str::from_utf8(self.bytes).ok()
+    }
+
+    /// Returns the raw symbol name as a list of bytes
+    pub fn as_bytes(&self) -> &'a [u8] {
+        self.bytes
+    }
+}
+impl<'a> fmt::Display for RawSymbolName<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        format_symbol_name(fmt::Display::fmt, self.bytes, f)
+    }
+}
+impl<'a> fmt::Debug for RawSymbolName<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        format_symbol_name(fmt::Debug::fmt, self.bytes, f)
     }
 }
 
