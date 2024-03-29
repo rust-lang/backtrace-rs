@@ -1,7 +1,7 @@
 extern crate cc;
 
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // Must be public so the build script of `std` can call it.
 pub fn main() {
@@ -21,7 +21,8 @@ BACKTRACE_RS_ANDROID_APIVERSION __ANDROID_API__
 fn build_android() {
     // Create `android-api.c` on demand.
     // Required to support calling this from the `std` build script.
-    let out_dir = std::fs::canonicalize(env::var_os("OUT_DIR").unwrap()).unwrap();
+    let out_dir = env::var_os("OUT_DIR").unwrap();
+    let out_dir = std::fs::canonicalize(&out_dir).unwrap_or(PathBuf::from(out_dir));
     let android_api_c = Path::new(&out_dir).join("android-api.c");
     std::fs::write(&android_api_c, ANDROID_API_C).unwrap();
 
