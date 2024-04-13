@@ -152,6 +152,10 @@ impl Drop for Bomb {
     }
 }
 
+/// hello i am documentation o/
+#[used]
+pub static CRITICALLY_IMPORTANT: [u8; 1024*1024] = [0; 1024*1024];
+
 #[allow(dead_code)]
 #[cfg(feature = "std")]
 mod lock {
