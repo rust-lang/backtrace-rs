@@ -1,7 +1,7 @@
 //! Empty symbolication strategy used to compile for platforms that have no
 //! support.
 
-use super::{BytesOrWideString, ResolveWhat, SymbolName};
+use super::{BytesOrWideString, RawSymbolName, ResolveWhat};
 use core::ffi::c_void;
 use core::marker;
 
@@ -12,7 +12,7 @@ pub struct Symbol<'a> {
 }
 
 impl Symbol<'_> {
-    pub fn name(&self) -> Option<SymbolName<'_>> {
+    pub fn name_raw(&self) -> Option<RawSymbolName<'_>> {
         None
     }
 

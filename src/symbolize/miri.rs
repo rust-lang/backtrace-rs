@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 
 use super::super::backtrace::miri::{resolve_addr, Frame};
 use super::BytesOrWideString;
-use super::{ResolveWhat, SymbolName};
+use super::{RawSymbolName, ResolveWhat};
 
 pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol)) {
     let sym = match what {
@@ -25,8 +25,8 @@ pub struct Symbol<'a> {
 }
 
 impl<'a> Symbol<'a> {
-    pub fn name(&self) -> Option<SymbolName<'_>> {
-        Some(SymbolName::new(&self.inner.inner.name))
+    pub fn name_raw(&self) -> Option<RawSymbolName<'_>> {
+        Some(RawSymbolName::new(&self.inner.inner.name))
     }
 
     pub fn addr(&self) -> Option<*mut c_void> {

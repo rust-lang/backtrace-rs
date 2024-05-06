@@ -7,8 +7,8 @@ use self::gimli::NativeEndian as Endian;
 use self::mmap::Mmap;
 use self::stash::Stash;
 use super::BytesOrWideString;
+use super::RawSymbolName;
 use super::ResolveWhat;
-use super::SymbolName;
 use addr2line::gimli;
 use core::convert::TryInto;
 use core::mem;
@@ -492,13 +492,13 @@ pub enum Symbol<'a> {
 }
 
 impl Symbol<'_> {
-    pub fn name(&self) -> Option<SymbolName<'_>> {
+    pub fn name_raw(&self) -> Option<RawSymbolName<'_>> {
         match self {
             Symbol::Frame { name, .. } => {
                 let name = name.as_ref()?;
-                Some(SymbolName::new(name))
+                Some(RawSymbolName::new(name))
             }
-            Symbol::Symtab { name, .. } => Some(SymbolName::new(name)),
+            Symbol::Symtab { name, .. } => Some(RawSymbolName::new(name)),
         }
     }
 

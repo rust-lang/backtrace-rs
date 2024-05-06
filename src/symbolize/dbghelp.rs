@@ -18,7 +18,7 @@
 #![allow(bad_style)]
 
 use super::super::{dbghelp, windows::*};
-use super::{BytesOrWideString, ResolveWhat, SymbolName};
+use super::{BytesOrWideString, RawSymbolName, ResolveWhat};
 use core::char;
 use core::ffi::c_void;
 use core::marker;
@@ -47,8 +47,8 @@ pub struct Symbol<'a> {
 }
 
 impl Symbol<'_> {
-    pub fn name(&self) -> Option<SymbolName<'_>> {
-        Some(SymbolName::new(unsafe { &*self.name }))
+    pub fn name_raw(&self) -> Option<RawSymbolName<'_>> {
+        Some(RawSymbolName::new(unsafe { &*self.name }))
     }
 
     pub fn addr(&self) -> Option<*mut c_void> {
