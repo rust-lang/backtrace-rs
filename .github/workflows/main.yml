@@ -22,6 +22,12 @@ jobs:
             rust: beta
           - os: ubuntu-20.04
             rust: nightly
+          - os: ubuntu-24.04
+            rust: stable
+          - os: ubuntu-24.04
+            rust: beta
+          - os: ubuntu-24.04
+            rust: nightly
           - os: macos-latest
             rust: stable
           - os: macos-latest
@@ -47,6 +53,12 @@ jobs:
       shell: bash
     - run: echo RUSTFLAGS=-Dwarnings >> $GITHUB_ENV
       shell: bash
+
+    # Starting with Ubuntu 22.04 libc6-dbg is needed.
+    - name: Install libc debug info
+      run: sudo apt-get install -y libc6-dbg
+      shell: bash
+      if: contains(matrix.os, 'ubuntu-24.04')
 
     # full fidelity of backtraces on 32-bit msvc requires frame pointers, so
     # enable that for our tests
@@ -85,6 +97,10 @@ jobs:
       if: contains(matrix.os, 'ubuntu')
       env:
         RUSTFLAGS: "-C link-arg=-Wl,--compress-debug-sections=zlib-gnu"
+    - run: cargo test
+      if: contains(matrix.os, 'ubuntu-24.04')
+      env:
+        RUSTFLAGS: "-C link-arg=-Wl,--compress-debug-sections=zstd"
 
     # Test that, on macOS, packed/unpacked debuginfo both work
     - run: cargo clean && cargo test

@@ -20,6 +20,9 @@ libc = { version = "0.2.146", default-features = false }
 miniz_oxide = { version = "0.7.0", optional = true, default-features = false }
 addr2line = { version = "0.22.0", optional = true, default-features = false }
 
+[target.'cfg(not(any(all(windows, target_env = "msvc", not(target_vendor = "uwp")), target_os = "illumos")))'.dependencies]
+zstd = { version = "= 0.13.0", optional = true, default-features = false }
+
 [target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies.object]
 version = "0.35.0"
 default-features = false
@@ -32,7 +35,7 @@ cc = "1.0.90"
 
 [features]
 default = ['backtrace']
-backtrace = ['addr2line', 'miniz_oxide', 'object']
+backtrace = ['addr2line', 'miniz_oxide', 'object', 'zstd']
 std = []
 
 [lints.rust]
