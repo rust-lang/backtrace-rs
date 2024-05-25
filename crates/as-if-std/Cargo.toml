@@ -14,16 +14,18 @@ bench = false
 [dependencies]
 cfg-if = "1.0"
 rustc-demangle = "0.1.21"
-libc = { version = "0.2.146", default-features = false }
 
-[target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies]
-miniz_oxide = { version = "0.7.0", optional = true, default-features = false }
+[target.'cfg(not(any(target_env = "msvc", target_vendor = "uwp")))'.dependencies]
+libc = { version = "0.2.146", default-features = false }
 addr2line = { version = "0.22.0", optional = true, default-features = false }
 
-[target.'cfg(not(any(all(windows, target_env = "msvc", not(target_vendor = "uwp")), target_os = "illumos")))'.dependencies]
+[target.'cfg(not(windows))'.dependencies]
+miniz_oxide = { version = "0.7.0", optional = true, default-features = false }
+
+[target.'cfg(not(any(windows, target_os = "illumos")))'.dependencies]
 zstd = { version = "= 0.13.0", optional = true, default-features = false }
 
-[target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies.object]
+[target.'cfg(not(any(target_env = "msvc", target_vendor = "uwp")))'.dependencies.object]
 version = "0.35.0"
 default-features = false
 optional = true

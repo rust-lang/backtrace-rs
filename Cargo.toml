@@ -39,15 +39,21 @@ cpp_demangle = { default-features = false, version = "0.4.0", optional = true, f
   "alloc",
 ] }
 
-[target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies]
-miniz_oxide = { version = "0.7.0", default-features = false }
+# MSVC uses PDB, not DWARF. But UWP doesn't allow for APIs gimli (via addr2line) uses,
+# so skip that too.
+[target.'cfg(not(any(target_env = "msvc", target_vendor = "uwp")))'.dependencies]
 addr2line = { version = "0.22.0", default-features = false }
 libc = { version = "0.2.146", default-features = false }
 
-[target.'cfg(not(any(all(windows, target_env = "msvc", not(target_vendor = "uwp")), target_os = "illumos")))'.dependencies]
+# Windows uses PE, not ELF, so libraries for ELF compression are unnecessary.
+[target.'cfg(not(windows))'.dependencies]
+miniz_oxide = { version = "0.7.0", default-features = false }
+
+# Also used for ELF compression, but doesn't build on illumos in CI.
+[target.'cfg(not(any(windows, target_os = "illumos")))'.dependencies]
 zstd = { version = "= 0.13.0", default-features = false }
 
-[target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies.object]
+[target.'cfg(not(any(target_env = "msvc", target_vendor = "uwp")))'.dependencies.object]
 version = "0.35.0"
 default-features = false
 features = ['read_core', 'elf', 'macho', 'pe', 'xcoff', 'unaligned', 'archive']
