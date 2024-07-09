@@ -47,7 +47,7 @@ fn child() {
     let done2 = done.clone();
     let a = thread::spawn(move || {
         while !done2.load(SeqCst) {
-            format!("{:?}", backtrace::Backtrace::new());
+            let _ = format!("{:?}", backtrace::Backtrace::new());
         }
     });
 
