@@ -37,8 +37,10 @@ fn infer_current_exe(base_addr: usize) -> OsString {
 
 // `info` should be a valid pointers.
 // `vec` should be a valid pointer to a `std::Vec`.
+// On `QNX-NTO` platform, info is a const pointer
 unsafe extern "C" fn callback(
-    info: *mut libc::dl_phdr_info,
+    #[cfg(not(target_os = "nto"))] info: *mut libc::dl_phdr_info,
+    #[cfg(target_os = "nto")] info: *const libc::dl_phdr_info,
     _size: libc::size_t,
     vec: *mut libc::c_void,
 ) -> libc::c_int {
