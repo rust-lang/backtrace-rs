@@ -12,7 +12,6 @@ use super::SymbolName;
 use addr2line::gimli;
 use core::convert::TryInto;
 use core::mem;
-use core::u32;
 use libc::c_void;
 use mystd::ffi::OsString;
 use mystd::fs::File;
@@ -100,7 +99,7 @@ impl Mapping {
             // only borrow `map` and `stash` and we're preserving them below.
             cx: unsafe { core::mem::transmute::<Context<'_>, Context<'static>>(cx) },
             _map: data,
-            stash: stash,
+            stash,
         })
     }
 }
@@ -119,16 +118,18 @@ impl<'data> Context<'data> {
         dwp: Option<Object<'data>>,
     ) -> Option<Context<'data>> {
         let mut sections = gimli::Dwarf::load(|id| -> Result<_, ()> {
-            if cfg!(not(target_os = "aix")) {
+            #[cfg(not(target_os = "aix"))]
+            {
                 let data = object.section(stash, id.name()).unwrap_or(&[]);
                 Ok(EndianSlice::new(data, Endian))
+            }
+
+            #[cfg(target_os = "aix")]
+            if let Some(name) = id.xcoff_name() {
+                let data = object.section(stash, name).unwrap_or(&[]);
+                Ok(EndianSlice::new(data, Endian))
             } else {
-                if let Some(name) = id.xcoff_name() {
-                    let data = object.section(stash, name).unwrap_or(&[]);
-                    Ok(EndianSlice::new(data, Endian))
-                } else {
-                    Ok(EndianSlice::new(&[], Endian))
-                }
+                Ok(EndianSlice::new(&[], Endian))
             }
         })
         .ok()?;
@@ -336,7 +337,7 @@ impl Cache {
         // never happen, and symbolicating backtraces would be ssssllllooooowwww.
         static mut MAPPINGS_CACHE: Option<Cache> = None;
 
-        f(MAPPINGS_CACHE.get_or_insert_with(|| Cache::new()))
+        f(MAPPINGS_CACHE.get_or_insert_with(Cache::new))
     }
 
     fn avma_to_svma(&self, addr: *const u8) -> Option<(usize, *const u8)> {
