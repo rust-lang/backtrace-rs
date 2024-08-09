@@ -26,10 +26,12 @@ default-features = false
 optional = true
 features = ['read_core', 'elf', 'macho', 'pe', 'xcoff', 'unaligned', 'archive']
 
+[target.'cfg(windows)'.dependencies]
+windows-targets = "0.52.6"
+
 [build-dependencies]
 # Dependency of the `backtrace` crate
 cc = "1.0.97"
-windows-bindgen = "0.56"
 
 [features]
 default = ['backtrace']
