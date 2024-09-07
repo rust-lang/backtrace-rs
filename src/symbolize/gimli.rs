@@ -4,18 +4,15 @@
 
 use self::gimli::read::EndianSlice;
 use self::gimli::NativeEndian as Endian;
-use self::mmap::Mmap;
 use self::stash::Stash;
 use super::BytesOrWideString;
 use super::ResolveWhat;
 use super::SymbolName;
 use addr2line::gimli;
-use core::convert::TryInto;
 use core::mem;
 use core::u32;
 use libc::c_void;
 use mystd::ffi::OsString;
-use mystd::fs::File;
 use mystd::path::Path;
 use mystd::prelude::v1::*;
 
@@ -26,33 +23,6 @@ mod mystd {
 #[cfg(not(backtrace_in_libstd))]
 extern crate std as mystd;
 
-cfg_if::cfg_if! {
-    if #[cfg(windows)] {
-        #[path = "gimli/mmap_windows.rs"]
-        mod mmap;
-    } else if #[cfg(target_vendor = "apple")] {
-        #[path = "gimli/mmap_unix.rs"]
-        mod mmap;
-    } else if #[cfg(any(
-        target_os = "android",
-        target_os = "freebsd",
-        target_os = "fuchsia",
-        target_os = "haiku",
-        target_os = "hurd",
-        target_os = "linux",
-        target_os = "openbsd",
-        target_os = "solaris",
-        target_os = "illumos",
-        target_os = "aix",
-    ))] {
-        #[path = "gimli/mmap_unix.rs"]
-        mod mmap;
-    } else {
-        #[path = "gimli/mmap_fake.rs"]
-        mod mmap;
-    }
-}
-
 mod stash;
 
 const MAPPINGS_CACHE_SIZE: usize = 4;
@@ -60,7 +30,7 @@ const MAPPINGS_CACHE_SIZE: usize = 4;
 struct Mapping {
     // 'static lifetime is a lie to hack around lack of support for self-referential structs.
     cx: Context<'static>,
-    _map: Mmap,
+    _map: Vec<u8>,
     stash: Stash,
 }
 
@@ -74,7 +44,7 @@ impl Mapping {
     /// Creates a `Mapping` by ensuring that the `data` specified is used to
     /// create a `Context` and it can only borrow from that or the `Stash` of
     /// decompressed sections or auxiliary data.
-    fn mk<F>(data: Mmap, mk: F) -> Option<Mapping>
+    fn mk<F>(data: Vec<u8>, mk: F) -> Option<Mapping>
     where
         F: for<'a> FnOnce(&'a [u8], &'a Stash) -> Option<Context<'a>>,
     {
@@ -86,7 +56,7 @@ impl Mapping {
 
     /// Creates a `Mapping` from `data`, or if the closure decides to, returns a
     /// different mapping.
-    fn mk_or_other<F>(data: Mmap, mk: F) -> Option<Mapping>
+    fn mk_or_other<F>(data: Vec<u8>, mk: F) -> Option<Mapping>
     where
         F: for<'a> FnOnce(&'a [u8], &'a Stash) -> Option<Either<Mapping, Context<'a>>>,
     {
@@ -182,12 +152,6 @@ impl<'data> Context<'data> {
             l = continuation.resume(handle_split_dwarf(self.package.as_ref(), stash, load));
         }
     }
-}
-
-fn mmap(path: &Path) -> Option<Mmap> {
-    let file = File::open(path).ok()?;
-    let len = file.metadata().ok()?.len().try_into().ok()?;
-    unsafe { Mmap::map(&file, len) }
 }
 
 cfg_if::cfg_if! {

@@ -2,7 +2,6 @@
 // only used on Linux right now, so allow dead code elsewhere
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 
-use super::Mmap;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
@@ -10,7 +9,7 @@ use core::cell::UnsafeCell;
 /// A simple arena allocator for byte buffers.
 pub struct Stash {
     buffers: UnsafeCell<Vec<Vec<u8>>>,
-    mmaps: UnsafeCell<Vec<Mmap>>,
+    mmaps: UnsafeCell<Vec<Vec<u8>>>,
 }
 
 impl Stash {
@@ -34,9 +33,9 @@ impl Stash {
         &mut buffers[i]
     }
 
-    /// Stores a `Mmap` for the lifetime of this `Stash`, returning a pointer
+    /// Stores a `Vec<u8>` for the lifetime of this `Stash`, returning a pointer
     /// which is scoped to just this lifetime.
-    pub fn cache_mmap(&self, map: Mmap) -> &[u8] {
+    pub fn cache_mmap(&self, map: Vec<u8>) -> &[u8] {
         // SAFETY: this is the only location for a mutable pointer to
         // `mmaps`, and this structure isn't threadsafe to shared across
         // threads either. We also never remove elements from `self.mmaps`,

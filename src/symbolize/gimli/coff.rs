@@ -1,3 +1,4 @@
+use super::mystd::fs;
 use super::{gimli, Context, Endian, EndianSlice, Mapping, Path, Stash, Vec};
 use alloc::sync::Arc;
 use core::convert::TryFrom;
@@ -14,7 +15,7 @@ type Pe = object::pe::ImageNtHeaders64;
 
 impl Mapping {
     pub fn new(path: &Path) -> Option<Mapping> {
-        let map = super::mmap(path)?;
+        let map = fs::read(path).ok()?;
         Mapping::mk(map, |data, stash| {
             Context::new(stash, Object::parse(data)?, None, None)
         })

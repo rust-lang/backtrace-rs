@@ -19,7 +19,7 @@ type Elf = object::elf::FileHeader64<NativeEndian>;
 
 impl Mapping {
     pub fn new(path: &Path) -> Option<Mapping> {
-        let map = super::mmap(path)?;
+        let map = fs::read(path).ok()?;
         Mapping::mk_or_other(map, |map, stash| {
             let object = Object::parse(&map)?;
 
@@ -45,7 +45,7 @@ impl Mapping {
 
     /// Load debuginfo from an external debug file.
     fn new_debug(original_path: &Path, path: PathBuf, crc: Option<u32>) -> Option<Mapping> {
-        let map = super::mmap(&path)?;
+        let map = fs::read(&path).ok()?;
         Mapping::mk(map, |map, stash| {
             let object = Object::parse(&map)?;
 
@@ -56,7 +56,7 @@ impl Mapping {
             // Try to locate a supplementary object file.
             let mut sup = None;
             if let Some((path_sup, build_id_sup)) = object.gnu_debugaltlink_path(&path) {
-                if let Some(map_sup) = super::mmap(&path_sup) {
+                if let Ok(map_sup) = fs::read(&path_sup) {
                     let map_sup = stash.cache_mmap(map_sup);
                     if let Some(sup_) = Object::parse(map_sup) {
                         if sup_.build_id() == Some(build_id_sup) {
@@ -84,7 +84,7 @@ impl Mapping {
             })
             .unwrap_or_else(|| "dwp".into());
         path_dwp.set_extension(dwp_extension);
-        if let Some(map_dwp) = super::mmap(&path_dwp) {
+        if let Ok(map_dwp) = fs::read(&path_dwp) {
             let map_dwp = stash.cache_mmap(map_dwp);
             if let Some(dwp_) = Object::parse(map_dwp) {
                 return Some(dwp_);
@@ -473,7 +473,7 @@ pub(super) fn handle_split_dwarf<'data>(
 
     path.push(convert_path(load.path.as_ref()?).ok()?);
 
-    if let Some(map_dwo) = super::mmap(&path) {
+    if let Ok(map_dwo) = fs::read(&path) {
         let map_dwo = stash.cache_mmap(map_dwo);
         if let Some(dwo) = Object::parse(map_dwo) {
             return gimli::Dwarf::load(|id| -> Result<_, ()> {

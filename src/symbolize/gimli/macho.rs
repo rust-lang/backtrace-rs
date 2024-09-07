@@ -1,3 +1,4 @@
+use super::mystd::fs;
 use super::{gimli, Box, Context, Endian, EndianSlice, Mapping, Path, Stash, Vec};
 use alloc::sync::Arc;
 use core::convert::TryInto;
@@ -20,7 +21,7 @@ impl Mapping {
     pub fn new(path: &Path) -> Option<Mapping> {
         // First up we need to load the unique UUID which is stored in the macho
         // header of the file we're reading, specified at `path`.
-        let map = super::mmap(path)?;
+        let map = fs::read(path).ok()?;
         let (macho, data) = find_header(&map)?;
         let endian = macho.endian().ok()?;
         let uuid = macho.uuid(endian, data, 0).ok()?;
@@ -74,7 +75,7 @@ impl Mapping {
         // information.
         for entry in dir.read_dir().ok()? {
             let entry = entry.ok()?;
-            let map = super::mmap(&entry.path())?;
+            let map = fs::read(&entry.path()).ok()?;
             let candidate = Mapping::mk(map, |data, stash| {
                 let (macho, data) = find_header(data)?;
                 let endian = macho.endian().ok()?;
@@ -285,7 +286,7 @@ fn object_mapping(file: &object::read::ObjectMapFile<'_>) -> Option<Mapping> {
     use super::mystd::ffi::OsStr;
     use super::mystd::os::unix::prelude::*;
 
-    let map = super::mmap(Path::new(OsStr::from_bytes(file.path())))?;
+    let map = fs::read(Path::new(OsStr::from_bytes(file.path()))).ok()?;
     let member_name = file.member();
     Mapping::mk(map, |data, stash| {
         let data = match member_name {

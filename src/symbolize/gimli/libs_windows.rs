@@ -1,6 +1,7 @@
 use super::super::super::windows_sys::*;
+use super::mystd::fs;
 use super::mystd::os::windows::prelude::*;
-use super::{coff, mmap, Library, LibrarySegment, OsString};
+use super::{coff, Library, LibrarySegment, OsString};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::mem;
@@ -75,7 +76,7 @@ unsafe fn load_library(me: &MODULEENTRY32W) -> Option<Library> {
     //
     // For now it appears that unlike ELF/MachO we can make do with one
     // segment per library, using `modBaseSize` as the whole size.
-    let mmap = mmap(name.as_ref())?;
+    let mmap = fs::read(&name).ok()?;
     let image_base = coff::get_image_base(&mmap)?;
     let base_addr = me.modBaseAddr as usize;
     Some(Library {

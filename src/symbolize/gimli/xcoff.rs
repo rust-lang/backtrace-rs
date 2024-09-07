@@ -1,4 +1,5 @@
 use super::mystd::ffi::{OsStr, OsString};
+use super::mystd::fs;
 use super::mystd::os::unix::ffi::OsStrExt;
 use super::mystd::str;
 use super::{gimli, Context, Endian, EndianSlice, Mapping, Path, Stash, Vec};
@@ -18,7 +19,7 @@ type Xcoff = object::xcoff::FileHeader64;
 
 impl Mapping {
     pub fn new(path: &Path, member_name: &OsString) -> Option<Mapping> {
-        let map = super::mmap(path)?;
+        let map = fs::read(path).ok()?;
         Mapping::mk(map, |data, stash| {
             if member_name.is_empty() {
                 Context::new(stash, Object::parse(data)?, None, None)
@@ -80,7 +81,7 @@ pub fn parse_xcoff(data: &[u8]) -> Option<Image> {
 }
 
 pub fn parse_image(path: &Path, member_name: &OsString) -> Option<Image> {
-    let map = super::mmap(path)?;
+    let map = fs::read(path).ok()?;
     let data = map.deref();
     if member_name.is_empty() {
         return parse_xcoff(data);
