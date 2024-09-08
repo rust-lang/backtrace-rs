@@ -23,6 +23,7 @@
 
 #![allow(non_snake_case)]
 
+use alloc::vec;
 use alloc::vec::Vec;
 
 use super::windows::*;
