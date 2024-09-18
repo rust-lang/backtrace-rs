@@ -1,7 +1,7 @@
 use super::super::super::windows_sys::*;
 
 use super::mystd::fs::File;
-use super::mystd::os::windows::prelude::*;
+use super::mystd::os::windows::io::AsRawHandle;
 use core::ffi::c_void;
 use core::ops::Deref;
 use core::ptr;

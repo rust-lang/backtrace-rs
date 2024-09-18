@@ -1,4 +1,5 @@
-use super::{gimli, Box, Context, Endian, EndianSlice, Mapping, Path, Stash, Vec};
+use super::{gimli, Context, Endian, EndianSlice, Mapping, Path, Stash, Vec};
+use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::convert::TryInto;
 use object::macho;
@@ -283,7 +284,7 @@ impl<'a> Object<'a> {
 
 fn object_mapping(file: &object::read::ObjectMapFile<'_>) -> Option<Mapping> {
     use super::mystd::ffi::OsStr;
-    use super::mystd::os::unix::prelude::*;
+    use super::mystd::os::unix::ffi::OsStrExt;
 
     let map = super::mmap(Path::new(OsStr::from_bytes(file.path())))?;
     let member_name = file.member();

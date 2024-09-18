@@ -1,8 +1,8 @@
 use super::mystd::ffi::{OsStr, OsString};
 use super::mystd::os::unix::ffi::OsStrExt;
-use super::mystd::str;
 use super::{gimli, Context, Endian, EndianSlice, Mapping, Path, Stash, Vec};
 use alloc::sync::Arc;
+use core::str;
 use core::ops::Deref;
 use object::read::archive::ArchiveFile;
 use object::read::xcoff::{FileHeader, SectionHeader, XcoffFile, XcoffSymbol};
