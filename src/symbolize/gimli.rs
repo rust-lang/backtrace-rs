@@ -186,6 +186,8 @@ impl<'data> Context<'data> {
 fn mmap(path: &Path) -> Option<Mmap> {
     let file = File::open(path).ok()?;
     let len = file.metadata().ok()?.len().try_into().ok()?;
+    // SAFETY: All files we mmap are mmaped by the dynamic linker or the kernel already for the
+    //         executable code of the process. Modifying them would cause crashes or UB anyways.
     unsafe { Mmap::map(&file, len, 0) }
 }
 

@@ -16,6 +16,13 @@ pub struct Mmap {
 }
 
 impl Mmap {
+    /// Map a file into memory, returning `None` on failure. `offset` must be a multiple of
+    /// `dwAllocationGranularity` size, or mapping will fail[^1].
+    ///
+    /// # Safety
+    /// - Mapped files must not be altered for the lifetime of the returned value.'
+    ///
+    /// [^1]: https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile
     pub unsafe fn map(file: &File, len: usize, offset: u64) -> Option<Mmap> {
         let file = file.try_clone().ok()?;
         let mapping = CreateFileMappingA(
