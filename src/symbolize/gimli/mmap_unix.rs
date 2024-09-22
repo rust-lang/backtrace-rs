@@ -22,7 +22,7 @@ impl Mmap {
     /// - Mapped files must not be altered for the lifetime of the returned value.
     ///
     /// [^1]: https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/functions/mmap.html
-    pub unsafe fn map(file: &File, len: usize, offset: u64) -> Option<Mmap> {
+    pub unsafe fn map(file: File, len: usize, offset: u64) -> Option<Mmap> {
         let ptr = mmap64(
             ptr::null_mut(),
             len,

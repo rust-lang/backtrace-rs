@@ -71,7 +71,7 @@ impl Mapping {
             // NOTE: we map the remainder of the entire archive instead of just the library so we don't have to determine its length
             // SAFETY: See `super::mmap` function
             let map = unsafe {
-                super::mmap::Mmap::map(&file, usize::try_from(len - zip_offset).ok()?, zip_offset)
+                super::mmap::Mmap::map(file, usize::try_from(len - zip_offset).ok()?, zip_offset)
             }?;
 
             Mapping::mk(map, |map, stash| {

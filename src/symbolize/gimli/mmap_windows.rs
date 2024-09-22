@@ -23,8 +23,7 @@ impl Mmap {
     /// - Mapped files must not be altered for the lifetime of the returned value.'
     ///
     /// [^1]: https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile
-    pub unsafe fn map(file: &File, len: usize, offset: u64) -> Option<Mmap> {
-        let file = file.try_clone().ok()?;
+    pub unsafe fn map(file: File, len: usize, offset: u64) -> Option<Mmap> {
         let mapping = CreateFileMappingA(
             file.as_raw_handle(),
             ptr::null_mut(),

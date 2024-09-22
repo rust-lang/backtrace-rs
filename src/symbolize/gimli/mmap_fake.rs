@@ -12,7 +12,7 @@ impl Mmap {
     ///
     /// # Safety
     /// This function is always safe to call.
-    pub unsafe fn map(mut file: &File, len: usize, offset: u64) -> Option<Mmap> {
+    pub unsafe fn map(mut file: File, len: usize, offset: u64) -> Option<Mmap> {
         let mut mmap = Mmap {
             vec: Vec::with_capacity(len),
         };
