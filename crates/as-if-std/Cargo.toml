@@ -18,7 +18,7 @@ libc = { version = "0.2.156", default-features = false }
 
 [target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies]
 miniz_oxide = { version = "0.8", optional = true, default-features = false }
-ruzstd = { version = "0.7.2", optional = true, default-features = false }
+ruzstd = { version = "0.7.3", optional = true, default-features = false }
 addr2line = { version = "0.24.0", optional = true, default-features = false }
 
 [target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies.object]
