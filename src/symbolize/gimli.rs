@@ -8,8 +8,10 @@ use self::mmap::Mmap;
 use self::stash::Stash;
 use super::BytesOrWideString;
 use super::ResolveWhat;
+use super::ShortBacktrace;
 use super::SymbolName;
 use addr2line::gimli;
+use addr2line::{LookupContinuation, LookupResult};
 use core::convert::TryInto;
 use core::mem;
 use core::u32;
@@ -170,9 +172,24 @@ impl<'data> Context<'data> {
         stash: &'data Stash,
         probe: u64,
     ) -> gimli::Result<addr2line::FrameIter<'_, EndianSlice<'data, Endian>>> {
-        use addr2line::{LookupContinuation, LookupResult};
+        let continuation = self.dwarf.find_frames(probe);
+        self.continuation_helper(stash, continuation)
+    }
 
-        let mut l = self.dwarf.find_frames(probe);
+    fn find_dwarf_and_unit(
+        &'_ self,
+        stash: &'data Stash,
+        probe: u64,
+    ) -> Option<gimli::UnitRef<'_, EndianSlice<'data, Endian>>> {
+        let continuation = self.dwarf.find_dwarf_and_unit(probe);
+        self.continuation_helper(stash, continuation)
+    }
+
+    fn continuation_helper<O>(
+        &'_ self,
+        stash: &'data Stash,
+        mut l: LookupResult<impl LookupContinuation<Output = O, Buf = EndianSlice<'data, Endian>>>,
+    ) -> O {
         loop {
             let (load, continuation) = match l {
                 LookupResult::Output(output) => break output,
@@ -409,6 +426,43 @@ impl Cache {
     }
 }
 
+impl ShortBacktrace {
+    fn from_raw(raw: u8) -> Option<Self> {
+        let this = match raw {
+            0 => ShortBacktrace::ThisFrameOnly,
+            1 => ShortBacktrace::Start,
+            2 => ShortBacktrace::End,
+            _ => return None,
+        };
+        Some(this)
+    }
+}
+
+#[allow(non_upper_case_globals)]
+const DW_AT_short_backtrace: gimli::DwAt = gimli::DwAt(0x3c00);
+
+fn parse_short_backtrace<'data, R: gimli::Reader<Offset = usize>>(
+    unit_ref: gimli::UnitRef<'_, R>,
+    frame: &addr2line::Frame<'_, R>,
+) -> Option<ShortBacktrace> {
+    use core::ops::ControlFlow;
+
+    let mut short_backtrace = None;
+    let _ = unit_ref.shared_attrs(frame.dw_die_offset?, 16, |attr, _| {
+        if attr.name() == DW_AT_short_backtrace {
+            let parsed = ShortBacktrace::from_raw(
+                attr.u8_value()
+                    .ok_or(gimli::Error::UnsupportedAttributeForm)?,
+            );
+            short_backtrace = Some(parsed.expect("rustc generated invalid debuginfo?"));
+            return Ok(ControlFlow::Break(()));
+        }
+        Ok(ControlFlow::Continue(()))
+    });
+
+    short_backtrace
+}
+
 pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol)) {
     let addr = what.address_or_ip();
     let mut call = |sym: Symbol<'_>| {
@@ -435,24 +489,30 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
         if let Ok(mut frames) = cx.find_frames(stash, addr as u64) {
             while let Ok(Some(frame)) = frames.next() {
                 any_frames = true;
-                let name = match frame.function {
+                let name = match &frame.function {
                     Some(f) => Some(f.name.slice()),
                     None => cx.object.search_symtab(addr as u64),
                 };
+                let unit_ref = cx.find_dwarf_and_unit(stash, addr as u64);
+                let short_backtrace = unit_ref.and_then(|unit| parse_short_backtrace(unit, &frame));
                 call(Symbol::Frame {
                     addr: addr as *mut c_void,
                     location: frame.location,
                     name,
+                    short_backtrace,
                 });
             }
         }
         if !any_frames {
             if let Some((object_cx, object_addr)) = cx.object.search_object_map(addr as u64) {
+                let unit_ref = None;
                 if let Ok(mut frames) = object_cx.find_frames(stash, object_addr) {
                     while let Ok(Some(frame)) = frames.next() {
                         any_frames = true;
                         call(Symbol::Frame {
                             addr: addr as *mut c_void,
+                            short_backtrace: unit_ref
+                                .and_then(|unit| parse_short_backtrace(unit, &frame)),
                             location: frame.location,
                             name: frame.function.map(|f| f.name.slice()),
                         });
@@ -475,6 +535,7 @@ pub enum Symbol<'a> {
         addr: *mut c_void,
         location: Option<addr2line::Location<'a>>,
         name: Option<&'a [u8]>,
+        short_backtrace: Option<ShortBacktrace>,
     },
     /// Couldn't find debug information, but we found it in the symbol table of
     /// the elf executable.
@@ -529,6 +590,15 @@ impl Symbol<'_> {
     pub fn colno(&self) -> Option<u32> {
         match self {
             Symbol::Frame { location, .. } => location.as_ref()?.column,
+            Symbol::Symtab { .. } => None,
+        }
+    }
+
+    pub fn short_backtrace(&self) -> Option<ShortBacktrace> {
+        match self {
+            Symbol::Frame {
+                short_backtrace, ..
+            } => *short_backtrace,
             Symbol::Symtab { .. } => None,
         }
     }

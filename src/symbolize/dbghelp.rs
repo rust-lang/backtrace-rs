@@ -73,6 +73,12 @@ impl Symbol<'_> {
 
         self._filename_cache.as_ref().map(Path::new)
     }
+
+    pub fn short_backtrace(&self) -> Option<super::ShortBacktrace> {
+        // Not supported with dllhelp API.
+        // FIXME: might be doable with [llvm.codeview.annotation](https://reviews.llvm.org/D36904)?
+        None
+    }
 }
 
 #[repr(C, align(8))]

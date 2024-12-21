@@ -51,6 +51,9 @@ version = "0.36.0"
 default-features = false
 features = ['read_core', 'elf', 'macho', 'pe', 'xcoff', 'unaligned', 'archive']
 
+[patch.crates-io]
+gimli = { git = "https://github.com/jyn514/gimli", branch = "shared-attrs", version = "0.31.1" }
+
 [dev-dependencies]
 dylib-dep = { path = "crates/dylib-dep" }
 libloading = "0.7"

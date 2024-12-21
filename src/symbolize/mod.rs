@@ -251,6 +251,16 @@ impl Symbol {
     pub fn filename(&self) -> Option<&Path> {
         self.inner.filename()
     }
+
+    /// Returns the short backtrace printing info for this function.
+    ///
+    /// This is currently only available when libbacktrace or gimli is being
+    /// used (e.g. unix platforms other) and when a binary is compiled with
+    /// debuginfo. If neither of these conditions is met then this will likely
+    /// return `None`.
+    pub fn short_backtrace(&self) -> Option<ShortBacktrace> {
+        self.inner.short_backtrace()
+    }
 }
 
 impl fmt::Debug for Symbol {
@@ -405,6 +415,14 @@ impl<'a> fmt::Debug for SymbolName<'a> {
 
         format_symbol_name(fmt::Debug::fmt, self.bytes, f)
     }
+}
+
+#[derive(Copy, Clone, Debug)]
+#[allow(missing_docs)]
+pub enum ShortBacktrace {
+    ThisFrameOnly,
+    Start,
+    End,
 }
 
 /// Attempt to reclaim that cached memory used to symbolicate addresses.
