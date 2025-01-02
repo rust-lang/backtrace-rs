@@ -80,13 +80,6 @@ jobs:
           cd library/backtrace
           git remote add head-pr "https://github.com/$PR_SOURCE_REPO"
           git fetch --all
-      - name: Build binary with base version of backtrace
-        uses: ./backtrace/.github/actions/build-with-patched-std
-        with:
-          backtrace-commit: ${{ env.BASE_COMMIT }}
-          main-rs: ${{ env.TEST_MAIN_RS }}
-          rustc-dir: ${{ env.RUSTC_DIR }}
-        id: size-reference
       - name: Build binary with PR version of backtrace
         uses: ./backtrace/.github/actions/build-with-patched-std
         with:
@@ -100,54 +93,3 @@ jobs:
       # run. Appending data to a single file within a matrix is subject to race
       # conditions. So we write the size data to files with distinct names
       # generated from the job index.
-      - name: Write sizes to file
-        uses: actions/github-script@v6
-        env:
-          SIZE_REFERENCE: ${{ steps.size-reference.outputs.test-binary-size }}
-          SIZE_UPDATED: ${{ steps.size-updated.outputs.test-binary-size }}
-          PLATFORM: ${{ matrix.platform }}
-        with:
-          script: |
-            const fs = require("fs");
-            const path = require("path");
-
-            fs.mkdirSync(process.env.SIZE_DATA_DIR, {recursive: true});
-
-            const output_data = JSON.stringify({
-              platform: process.env.PLATFORM,
-              reference: process.env.SIZE_REFERENCE,
-              updated: process.env.SIZE_UPDATED,
-            });
-
-            // The "wx" flag makes this fail if the file exists, which we want,
-            // because there should be no collisions.
-            fs.writeFileSync(
-              path.join(process.env.SIZE_DATA_DIR, process.env.SIZE_DATA_FILE),
-              output_data,
-              { flag: "wx" },
-            );
-      - name: Upload size data
-        uses: actions/upload-artifact@v4
-        with:
-          name: size-files
-          path: ${{ env.SIZE_DATA_DIR }}/${{ env.SIZE_DATA_FILE }}
-          retention-days: 1
-          if-no-files-found: error
-  report:
-    name: Report binary size changes
-    runs-on: ubuntu-latest
-    needs: measure
-    permissions:
-      pull-requests: write
-    steps:
-      # Clone backtrace to access Github composite actions to report size.
-      - uses: actions/checkout@v4
-      - name: Download size data
-        uses: actions/download-artifact@v4
-        with:
-          name: size-files
-          path: ${{ env.SIZE_DATA_DIR }}
-      - name: Analyze and report size changes
-        uses: ./.github/actions/report-code-size-changes
-        with:
-          data-directory: ${{ env.SIZE_DATA_DIR }}
