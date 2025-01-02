@@ -21,7 +21,8 @@
 //! bridge when we get there.
 
 #![allow(non_snake_case)]
-
+// SAFETY: none! HERE BE DEMONS
+#![allow(static_mut_refs)]
 use alloc::vec::Vec;
 
 use super::windows_sys::*;
