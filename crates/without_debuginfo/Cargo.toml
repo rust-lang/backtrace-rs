@@ -14,3 +14,5 @@ debug = false
 
 [profile.test]
 debug = false
+[patch.crates-io]
+gimli = { git = "https://github.com/jyn514/gimli", branch = "shared-attrs", version = "0.31.1" }
