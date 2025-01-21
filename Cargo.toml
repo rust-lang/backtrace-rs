@@ -39,7 +39,8 @@ cpp_demangle = { default-features = false, version = "0.4.0", optional = true, f
 ] }
 
 [target.'cfg(any(windows, target_os = "cygwin"))'.dependencies]
-windows-targets = "0.52.6"
+# We know we're compatible with `windows` 0.52.6 to 0.53.0, inclusive—permit the entire range.
+windows-targets = ">=0.52.6,<0.54.0"
 
 [target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies]
 miniz_oxide = { version = "0.8", default-features = false }
