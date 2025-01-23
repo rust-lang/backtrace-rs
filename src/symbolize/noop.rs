@@ -1,7 +1,7 @@
 //! Empty symbolication strategy used to compile for platforms that have no
 //! support.
 
-use super::{BytesOrWideString, ResolveWhat, SymbolName};
+use super::{BytesOrWideString, ResolveWhat, ShortBacktrace, SymbolName};
 use core::ffi::c_void;
 use core::marker;
 
@@ -34,6 +34,10 @@ impl Symbol<'_> {
     }
 
     pub fn colno(&self) -> Option<u32> {
+        None
+    }
+
+    pub fn short_backtrace(&self) -> Option<ShortBacktrace> {
         None
     }
 }

@@ -294,7 +294,7 @@ impl<'a> Object<'a> {
         }
     }
 
-    pub(super) fn search_object_map(&self, _addr: u64) -> Option<(&Context<'_>, u64)> {
+    pub(super) fn search_object_map(&mut self, _addr: u64) -> Option<(&Context<'_>, u64)> {
         None
     }
 

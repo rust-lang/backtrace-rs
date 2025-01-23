@@ -55,6 +55,7 @@ jobs:
         with:
           repository: rust-lang/rust
           path: ${{ env.RUSTC_DIR }}
+          ref: 'backtrace-debuginfo'
       - name: Set up std repository and backtrace submodule for size test
         shell: bash
         working-directory: ${{ env.RUSTC_DIR }}
