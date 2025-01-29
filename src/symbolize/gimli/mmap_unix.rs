@@ -15,7 +15,14 @@ pub struct Mmap {
 }
 
 impl Mmap {
-    pub unsafe fn map(file: &File, len: usize, offset: u64) -> Option<Mmap> {
+    /// Map a file into memory, returning `None` on failure. `offset` must be a multiple of the page
+    /// size, or mapping will fail[^1].
+    ///
+    /// # Safety
+    /// - Mapped files must not be altered for the lifetime of the returned value.
+    ///
+    /// [^1]: https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/functions/mmap.html
+    pub unsafe fn map(file: File, len: usize, offset: u64) -> Option<Mmap> {
         let ptr = mmap64(
             ptr::null_mut(),
             len,
