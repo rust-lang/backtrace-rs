@@ -12,10 +12,11 @@ use std::process::Command;
 mod common;
 
 fn main() {
-    if cfg!(target_os = "netbsd") {
-        // NetBSD doesn't support this silliness, so because this is an fn main test,
-        // just pass it on there. If we used ui-test or something we'd use
+    if cfg!(target_os = "netbsd") || cfg!(target_os = "haiku") {
+        // NetBSD and Haiku don't support this silliness, so because this is an fn main
+        // test just pass it on there. If we used ui-test or something we'd use
         //@ ignore-netbsd
+        //@ ignore-haiku
         return;
     }
 
