@@ -223,6 +223,7 @@ cfg_if::cfg_if! {
             target_os = "linux",
             target_os = "fuchsia",
             target_os = "freebsd",
+            target_os = "haiku",
             target_os = "hurd",
             target_os = "openbsd",
             target_os = "netbsd",
@@ -238,9 +239,6 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_env = "libnx")] {
         mod libs_libnx;
         use libs_libnx::native_libraries;
-    } else if #[cfg(target_os = "haiku")] {
-        mod libs_haiku;
-        use libs_haiku::native_libraries;
     } else if #[cfg(target_os = "aix")] {
         mod libs_aix;
         use libs_aix::native_libraries;
