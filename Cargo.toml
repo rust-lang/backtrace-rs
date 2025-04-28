@@ -39,7 +39,7 @@ cpp_demangle = { default-features = false, version = "0.4.0", optional = true, f
 ] }
 
 [target.'cfg(windows)'.dependencies]
-windows-targets = "0.52.6"
+windows-targets = ">=0.52.6,<0.54.0"
 
 [target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies]
 miniz_oxide = { version = "0.8", default-features = false }
@@ -119,3 +119,8 @@ harness = false
 [lints.rust]
 # This crate uses them pervasively
 unexpected_cfgs = "allow"
+
+# TODO: Consume a release of `libloading` that contains
+# <https://github.com/nagisa/rust_libloading/pull/169>.
+[patch.crates-io]
+libloading = { git = "https://github.com/erichdongubler-contrib/rust_libloading", rev = "3a968416490d8d2beca36d9b18a4efde3eceb161" }
