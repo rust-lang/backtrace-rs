@@ -20,13 +20,13 @@ pub(super) struct MapsEntry {
     /// x = execute
     /// s = shared
     /// p = private (copy on write)
-    perms: [char; 4],
+    // perms: [u8; 4],
     /// Offset into the file (or "whatever").
-    offset: u64,
+    // offset: u64,
     /// device (major, minor)
-    dev: (usize, usize),
+    // dev: (usize, usize),
     /// inode on the device. 0 indicates that no inode is associated with the memory region (e.g. uninitalized data aka BSS).
-    inode: usize,
+    // inode: usize,
     /// Usually the file backing the mapping.
     ///
     /// Note: The man page for proc includes a note about "coordination" by
@@ -56,13 +56,13 @@ pub(super) struct MapsEntry {
 }
 
 pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
+    let failed_io_err = "couldn't read /proc/self/maps";
     let mut v = Vec::new();
-    let mut proc_self_maps =
-        File::open("/proc/self/maps").map_err(|_| "Couldn't open /proc/self/maps")?;
+    let mut proc_self_maps = File::open("/proc/self/maps").map_err(|_| failed_io_err)?;
     let mut buf = String::new();
     let _bytes_read = proc_self_maps
         .read_to_string(&mut buf)
-        .map_err(|_| "Couldn't read /proc/self/maps")?;
+        .map_err(|_| failed_io_err)?;
     for line in buf.lines() {
         v.push(line.parse()?);
     }
@@ -71,10 +71,12 @@ pub(super) fn parse_maps() -> Result<Vec<MapsEntry>, &'static str> {
 }
 
 impl MapsEntry {
+    #[inline]
     pub(super) fn pathname(&self) -> &OsString {
         &self.pathname
     }
 
+    #[inline]
     pub(super) fn ip_matches(&self, ip: usize) -> bool {
         self.address.0 <= ip && ip < self.address.1
     }
@@ -96,66 +98,44 @@ impl FromStr for MapsEntry {
     // Note that paths may contain spaces, so we can't use `str::split` for parsing (until
     // Split::remainder is stabilized #77998).
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (range_str, s) = s.trim_start().split_once(' ').unwrap_or((s, ""));
-        if range_str.is_empty() {
-            return Err("Couldn't find address");
-        }
+        let missing_field = "failed to find all map fields";
+        let parse_err = "failed to parse all map fields";
+        let mut parts = s.split_ascii_whitespace();
+        let range_str = parts.next().ok_or(missing_field)?;
+        let perms_str = parts.next().ok_or(missing_field)?;
+        let offset_str = parts.next().ok_or(missing_field)?;
+        let dev_str = parts.next().ok_or(missing_field)?;
+        let inode_str = parts.next().ok_or(missing_field)?;
+        let pathname_str = parts.next().unwrap_or(""); // pathname may be omitted.
 
-        let (perms_str, s) = s.trim_start().split_once(' ').unwrap_or((s, ""));
-        if perms_str.is_empty() {
-            return Err("Couldn't find permissions");
-        }
-
-        let (offset_str, s) = s.trim_start().split_once(' ').unwrap_or((s, ""));
-        if offset_str.is_empty() {
-            return Err("Couldn't find offset");
-        }
-
-        let (dev_str, s) = s.trim_start().split_once(' ').unwrap_or((s, ""));
-        if dev_str.is_empty() {
-            return Err("Couldn't find dev");
-        }
-
-        let (inode_str, s) = s.trim_start().split_once(' ').unwrap_or((s, ""));
-        if inode_str.is_empty() {
-            return Err("Couldn't find inode");
-        }
-
-        // Pathname may be omitted in which case it will be empty
-        let pathname_str = s.trim_start();
-
-        let hex = |s| usize::from_str_radix(s, 16).map_err(|_| "Couldn't parse hex number");
-        let hex64 = |s| u64::from_str_radix(s, 16).map_err(|_| "Couldn't parse hex number");
-
+        let hex = |s| usize::from_str_radix(s, 16).map_err(|_| parse_err);
         let address = if let Some((start, limit)) = range_str.split_once('-') {
             (hex(start)?, hex(limit)?)
         } else {
-            return Err("Couldn't parse address range");
+            return Err(parse_err);
         };
-        let perms: [char; 4] = {
-            let mut chars = perms_str.chars();
-            let mut c = || chars.next().ok_or("insufficient perms");
-            let perms = [c()?, c()?, c()?, c()?];
-            if chars.next().is_some() {
-                return Err("too many perms");
-            }
-            perms
+        let _perms = if let &[r, w, x, p, ..] = perms_str.as_bytes() {
+            // If a system in the future adds a 5th field to the permission list,
+            // there's no reason to assume previous fields were invalidated.
+            [r, w, x, p]
+        } else {
+            return Err(parse_err);
         };
-        let offset = hex64(offset_str)?;
-        let dev = if let Some((major, minor)) = dev_str.split_once(':') {
+        let _offset = hex(offset_str)?;
+        let _dev = if let Some((major, minor)) = dev_str.split_once(':') {
             (hex(major)?, hex(minor)?)
         } else {
-            return Err("Couldn't parse dev");
+            return Err(parse_err);
         };
-        let inode = hex(inode_str)?;
+        let _inode = hex(inode_str)?;
         let pathname = pathname_str.into();
 
         Ok(MapsEntry {
             address,
-            perms,
-            offset,
-            dev,
-            inode,
+            // perms,
+            // offset,
+            // dev,
+            // inode,
             pathname,
         })
     }
@@ -172,10 +152,10 @@ fn check_maps_entry_parsing_64bit() {
             .unwrap(),
         MapsEntry {
             address: (0xffffffffff600000, 0xffffffffff601000),
-            perms: ['-', '-', 'x', 'p'],
-            offset: 0x00000000,
-            dev: (0x00, 0x00),
-            inode: 0x0,
+            // perms: *b"--xp",
+            // offset: 0x00000000,
+            // dev: (0x00, 0x00),
+            // inode: 0x0,
             pathname: "[vsyscall]".into(),
         }
     );
@@ -187,10 +167,10 @@ fn check_maps_entry_parsing_64bit() {
             .unwrap(),
         MapsEntry {
             address: (0x7f5985f46000, 0x7f5985f48000),
-            perms: ['r', 'w', '-', 'p'],
-            offset: 0x00039000,
-            dev: (0x103, 0x06),
-            inode: 0x76021795,
+            // perms: *b"rw-p",
+            // offset: 0x00039000,
+            // dev: (0x103, 0x06),
+            // inode: 0x76021795,
             pathname: "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2".into(),
         }
     );
@@ -200,10 +180,10 @@ fn check_maps_entry_parsing_64bit() {
             .unwrap(),
         MapsEntry {
             address: (0x35b1a21000, 0x35b1a22000),
-            perms: ['r', 'w', '-', 'p'],
-            offset: 0x00000000,
-            dev: (0x00, 0x00),
-            inode: 0x0,
+            // perms: *b"rw-p",
+            // offset: 0x00000000,
+            // dev: (0x00, 0x00),
+            // inode: 0x0,
             pathname: Default::default(),
         }
     );
@@ -224,10 +204,10 @@ fn check_maps_entry_parsing_32bit() {
             .unwrap(),
         MapsEntry {
             address: (0x08056000, 0x08077000),
-            perms: ['r', 'w', '-', 'p'],
-            offset: 0x00000000,
-            dev: (0x00, 0x00),
-            inode: 0x0,
+            // perms: *b"rw-p",
+            // offset: 0x00000000,
+            // dev: (0x00, 0x00),
+            // inode: 0x0,
             pathname: "[heap]".into(),
         }
     );
@@ -239,10 +219,10 @@ fn check_maps_entry_parsing_32bit() {
             .unwrap(),
         MapsEntry {
             address: (0xb7c79000, 0xb7e02000),
-            perms: ['r', '-', '-', 'p'],
-            offset: 0x00000000,
-            dev: (0x08, 0x01),
-            inode: 0x60662705,
+            // perms: *b"r--p",
+            // offset: 0x00000000,
+            // dev: (0x08, 0x01),
+            // inode: 0x60662705,
             pathname: "/usr/lib/locale/locale-archive".into(),
         }
     );
@@ -252,10 +232,10 @@ fn check_maps_entry_parsing_32bit() {
             .unwrap(),
         MapsEntry {
             address: (0xb7e02000, 0xb7e03000),
-            perms: ['r', 'w', '-', 'p'],
-            offset: 0x00000000,
-            dev: (0x00, 0x00),
-            inode: 0x0,
+            // perms: *b"rw-p",
+            // offset: 0x00000000,
+            // dev: (0x00, 0x00),
+            // inode: 0x0,
             pathname: Default::default(),
         }
     );
