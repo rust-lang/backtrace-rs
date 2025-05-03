@@ -9,6 +9,10 @@ on:
     branches:
       - master
 
+# Remove all permissions for the workflow to increase security; the individual jobs
+# below specify the exact permissions they need
+permissions: {}
+
 # Both the "measure" and "report" jobs need to know this.
 env:
   SIZE_DATA_DIR: sizes
