@@ -124,9 +124,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.36.4"
+version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "084f1a5821ac4c651660a94a7153d27ac9d8a53736203f58b31945ded098070a"
+checksum = "6273adb7096cf9ab4335f258e627d8230e69d40d45567d678f552dcec6245215"
 dependencies = [
  "memchr",
 ]
