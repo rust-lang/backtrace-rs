@@ -4,7 +4,6 @@ use super::{Library, LibrarySegment};
 use alloc::borrow::ToOwned;
 use alloc::vec::Vec;
 use core::ffi::CStr;
-use core::mem;
 use object::NativeEndian;
 
 #[cfg(target_pointer_width = "64")]
@@ -38,8 +37,8 @@ pub(super) fn native_libraries() -> Vec<Library> {
     let mut libs = Vec::new();
 
     // Request the current link map from the runtime linker:
+    let mut map: *const LinkMap = core::ptr::null();
     let map = unsafe {
-        let mut map: *const LinkMap = mem::zeroed();
         if dlinfo(
             RTLD_SELF,
             RTLD_DI_LINKMAP,

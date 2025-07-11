@@ -1,7 +1,7 @@
 use core::fmt::{self, Write};
-use core::mem::{size_of, transmute};
 use core::slice::from_raw_parts;
 use libc::c_char;
+use zerocopy::FromBytes;
 
 unsafe extern "C" {
     // dl_iterate_phdr takes a callback that will receive a dl_phdr_info pointer
@@ -181,15 +181,12 @@ fn take_bytes_align4<'a>(num: usize, bytes: &mut &'a [u8]) -> Option<&'a [u8]> {
 // architectures correctness). The values in the Elf_Nhdr fields might
 // be nonsense but this function ensures no such thing.
 fn take_nhdr<'a>(bytes: &mut &'a [u8]) -> Option<&'a Elf_Nhdr> {
-    if size_of::<Elf_Nhdr>() > bytes.len() {
-        return None;
-    }
-    // This is safe as long as there is enough space and we just confirmed that
-    // in the if statement above so this should not be unsafe.
-    let out = unsafe { transmute::<*const u8, &'a Elf_Nhdr>(bytes.as_ptr()) };
-    // Note that sice_of::<Elf_Nhdr>() is always 4-byte aligned.
-    *bytes = &bytes[size_of::<Elf_Nhdr>()..];
-    Some(out)
+    let (hdr, suffix) = <[u32; 3]>::ref_from_prefix(*bytes).ok()?;
+    *bytes = suffix;
+
+    let hdr: *const [u32; 3] = hdr;
+    // SAFETY: `[u32; 3]` and `Elf_Nhdr` have the same layout and bit validity.
+    Some(unsafe { &*hdr.cast::<Elf_Nhdr>() })
 }
 
 impl<'a> Iterator for NoteIter<'a> {

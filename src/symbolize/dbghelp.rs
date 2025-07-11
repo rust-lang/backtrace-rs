@@ -222,9 +222,35 @@ unsafe fn do_resolve(
     get_line_from_addr: impl FnOnce(&mut IMAGEHLP_LINEW64) -> BOOL,
     cb: &mut dyn FnMut(&super::Symbol),
 ) {
-    const SIZE: usize = 2 * MAX_SYM_NAME as usize + mem::size_of::<SYMBOL_INFOW>();
-    let mut data = Aligned8([0u8; SIZE]);
-    let info = unsafe { &mut *data.0.as_mut_ptr().cast::<SYMBOL_INFOW>() };
+    const TRAILER_SIZE: usize = 2 * MAX_SYM_NAME as usize;
+
+    #[repr(C)]
+    struct Data {
+        symbol_infow: SYMBOL_INFOW,
+        __max_sym_name: [u8; TRAILER_SIZE],
+    }
+
+    let mut data = Aligned8(Data {
+        symbol_infow: SYMBOL_INFOW {
+            SizeOfStruct: 0,
+            TypeIndex: 0,
+            Reserved: [0, 0],
+            Index: 0,
+            Size: 0,
+            ModBase: 0,
+            Flags: 0,
+            Value: 0,
+            Address: 0,
+            Register: 0,
+            Scope: 0,
+            Tag: 0,
+            NameLen: 0,
+            MaxNameLen: 0,
+            Name: [0],
+        },
+        __max_sym_name: [0u8; TRAILER_SIZE],
+    });
+    let info = &mut data.0.symbol_infow;
     info.MaxNameLen = MAX_SYM_NAME as u32;
     // the struct size in C.  the value is different to
     // `size_of::<SYMBOL_INFOW>() - MAX_SYM_NAME + 1` (== 81)
