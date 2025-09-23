@@ -255,7 +255,6 @@ cfg_if::cfg_if! {
     }
 }
 
-#[derive(Default)]
 struct Cache {
     /// All known shared libraries that have been loaded.
     libraries: Vec<Library>,
@@ -350,10 +349,10 @@ pub unsafe fn clear_symbol_cache() {
 }
 
 impl Cache {
-    fn new() -> Cache {
+    const fn new() -> Cache {
         Cache {
-            mappings: Lru::default(),
-            libraries: native_libraries(),
+            mappings: Lru::new(),
+            libraries: Vec::new(),
         }
     }
 
@@ -371,12 +370,15 @@ impl Cache {
         // leverage the structures built when constructing `addr2line::Context`s to
         // get nice speedups. If we didn't have this cache, that amortization would
         // never happen, and symbolicating backtraces would be ssssllllooooowwww.
-        static mut MAPPINGS_CACHE: Option<Cache> = None;
+        static mut MAPPINGS_CACHE: Cache = Cache::new();
 
+        // FIXME: https://github.com/rust-lang/backtrace-rs/issues/678
+        #[allow(static_mut_refs)]
         unsafe {
-            // FIXME: https://github.com/rust-lang/backtrace-rs/issues/678
-            #[allow(static_mut_refs)]
-            f(MAPPINGS_CACHE.get_or_insert_with(Cache::new))
+            if MAPPINGS_CACHE.libraries.is_empty() {
+                MAPPINGS_CACHE.libraries = native_libraries();
+            }
+            f(&mut MAPPINGS_CACHE)
         }
     }
 

@@ -8,8 +8,8 @@ pub(crate) struct Lru<T, const N: usize> {
     arr: [MaybeUninit<T>; N],
 }
 
-impl<T, const N: usize> Default for Lru<T, N> {
-    fn default() -> Self {
+impl<T, const N: usize> Lru<T, N> {
+    pub(crate) const fn new() -> Self {
         Lru {
             len: 0,
             arr: [const { MaybeUninit::uninit() }; N],
