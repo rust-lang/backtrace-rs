@@ -8,6 +8,14 @@ As a unique component of `std` it may make exceptional changes in order to suppo
 
 ## [Unreleased]
 
+## [0.3.77](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.76...backtrace-v0.3.77) - 2025-09-26
+
+### Other
+
+- unsafe-wrap a stray deref-project -> &raw
+- update to edition 2024 and MSRV 1.88
+- update MSRV job to 1.88
+
 ## [0.3.76](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.75...backtrace-v0.3.76) - 2025-09-26
 
 ### Behavior
