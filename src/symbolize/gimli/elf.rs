@@ -30,17 +30,17 @@ impl Mapping {
             let object = Object::parse(map)?;
 
             // Try to locate an external debug file using the build ID.
-            if let Some(path_debug) = object.build_id().and_then(locate_build_id) {
-                if let Some(mapping) = Mapping::new_debug(path, path_debug, None) {
-                    return Some(Either::A(mapping));
-                }
+            if let Some(path_debug) = object.build_id().and_then(locate_build_id)
+                && let Some(mapping) = Mapping::new_debug(path, path_debug, None)
+            {
+                return Some(Either::A(mapping));
             }
 
             // Try to locate an external debug file using the GNU debug link section.
-            if let Some((path_debug, crc)) = object.gnu_debuglink_path(path) {
-                if let Some(mapping) = Mapping::new_debug(path, path_debug, Some(crc)) {
-                    return Some(Either::A(mapping));
-                }
+            if let Some((path_debug, crc)) = object.gnu_debuglink_path(path)
+                && let Some(mapping) = Mapping::new_debug(path, path_debug, Some(crc))
+            {
+                return Some(Either::A(mapping));
             }
 
             let dwp = Mapping::load_dwarf_package(path, stash);
@@ -102,14 +102,14 @@ impl Mapping {
 
             // Try to locate a supplementary object file.
             let mut sup = None;
-            if let Some((path_sup, build_id_sup)) = object.gnu_debugaltlink_path(&path) {
-                if let Some(map_sup) = super::mmap(&path_sup) {
-                    let map_sup = stash.cache_mmap(map_sup);
-                    if let Some(sup_) = Object::parse(map_sup) {
-                        if sup_.build_id() == Some(build_id_sup) {
-                            sup = Some(sup_);
-                        }
-                    }
+            if let Some((path_sup, build_id_sup)) = object.gnu_debugaltlink_path(&path)
+                && let Some(map_sup) = super::mmap(&path_sup)
+            {
+                let map_sup = stash.cache_mmap(map_sup);
+                if let Some(sup_) = Object::parse(map_sup)
+                    && sup_.build_id() == Some(build_id_sup)
+                {
+                    sup = Some(sup_);
                 }
             }
 
@@ -532,10 +532,10 @@ pub(super) fn handle_split_dwarf<'data>(
     stash: &'data Stash,
     load: addr2line::SplitDwarfLoad<EndianSlice<'data, Endian>>,
 ) -> Option<Arc<gimli::Dwarf<EndianSlice<'data, Endian>>>> {
-    if let Some(dwp) = package.as_ref() {
-        if let Ok(Some(cu)) = dwp.find_cu(load.dwo_id, &load.parent) {
-            return Some(Arc::new(cu));
-        }
+    if let Some(dwp) = package.as_ref()
+        && let Ok(Some(cu)) = dwp.find_cu(load.dwo_id, &load.parent)
+    {
+        return Some(Arc::new(cu));
     }
 
     let mut path = PathBuf::new();

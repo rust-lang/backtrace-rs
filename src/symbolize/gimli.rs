@@ -478,16 +478,16 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
                 }
             }
             if !any_frames {
-                if let Some((object_cx, object_addr)) = cx.object.search_object_map(addr as u64) {
-                    if let Ok(mut frames) = object_cx.find_frames(stash, object_addr) {
-                        while let Ok(Some(frame)) = frames.next() {
-                            any_frames = true;
-                            call(Symbol::Frame {
-                                addr: addr as *mut c_void,
-                                location: frame.location,
-                                name: frame.function.map(|f| f.name.slice()),
-                            });
-                        }
+                if let Some((object_cx, object_addr)) = cx.object.search_object_map(addr as u64)
+                    && let Ok(mut frames) = object_cx.find_frames(stash, object_addr)
+                {
+                    while let Ok(Some(frame)) = frames.next() {
+                        any_frames = true;
+                        call(Symbol::Frame {
+                            addr: addr as *mut c_void,
+                            location: frame.location,
+                            name: frame.function.map(|f| f.name.slice()),
+                        });
                     }
                 }
             }
