@@ -8,6 +8,16 @@ As a unique component of `std` it may make exceptional changes in order to suppo
 
 ## [Unreleased]
 
+## [0.3.77](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.76...backtrace-v0.3.77) - 2026-01-25
+
+### Other
+
+- Merge of rust-lang/backtrace-rs#739: Fix line-tables-only on macOS 15
+- Bump rustc-demangle (rust-lang/backtrace-rs#746)
+- Always use `extern "system"` for Windows imports
+- Merge pull request #745 from clubby789/func-cast
+- Fix `function_casts_as_integer` failures
+
 ## [0.3.76](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.75...backtrace-v0.3.76) - 2025-09-26
 
 ### Behavior
