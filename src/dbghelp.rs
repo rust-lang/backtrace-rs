@@ -22,6 +22,7 @@
 
 #![allow(non_snake_case)]
 
+use alloc::vec;
 use alloc::vec::Vec;
 
 use super::windows_sys::*;
@@ -350,8 +351,7 @@ unsafe fn set_optional_options(dbghelp: *mut Dbghelp) -> Option<()> {
         //
         // See https://learn.microsoft.com/cpp/build/reference/pdbpath for an
         // example of where symbols are usually searched for.
-        let mut search_path_buf = Vec::new();
-        search_path_buf.resize(1024, 0);
+        let mut search_path_buf = vec![0; 1024];
 
         // Prefill the buffer with the current search path.
         if (*dbghelp).SymGetSearchPathW()?(
