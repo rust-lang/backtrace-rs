@@ -66,12 +66,15 @@ impl<'a> BytesOrWideString<'a> {
             }
         }
 
-        if let BytesOrWideString::Bytes(b) = self {
-            if let Ok(s) = str::from_utf8(b) {
-                return PathBuf::from(s);
-            }
+        // cross-platform fallback is to pray we are dealing with utf-8
+        if let BytesOrWideString::Bytes(b) = self
+            && let Ok(s) = str::from_utf8(b)
+        {
+            PathBuf::from(s)
+        } else {
+            // or die
+            unreachable!()
         }
-        unreachable!()
     }
 }
 
