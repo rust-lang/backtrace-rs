@@ -79,6 +79,15 @@ impl Frame {
         // clause, and if this is fixed that test in theory can be run on macOS!
         if cfg!(target_vendor = "apple") {
             self.ip()
+        } else if cfg!(target_abi = "pauthtest") {
+            // NOTE: `_Unwind_FindEnclosingFunction` creates a fresh unwind
+            // cursor and, on the pointer-authentication-enabled AArch64
+            // reference ABI, authenticates/re-signs the supplied IP using that
+            // cursor's SP. The original frame's SP is not available through
+            // this API, so the current libunwind implementation cannot be used
+            // here: it would attempt to authenticate the IP using the wrong SP.
+            // Return the raw instruction pointer instead.
+            self.ip()
         } else {
             unsafe { uw::_Unwind_FindEnclosingFunction(self.ip()) }
         }

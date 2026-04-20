@@ -25,6 +25,13 @@ fn get_actual_fn_pointer(fp: *mut c_void) -> *mut c_void {
 }
 
 #[test]
+// This test relies on recovering precise symbol addresses from instruction
+// pointers. On `aarch64-unknown-linux-pauthtest`, we cannot safely use
+// `_Unwind_FindEnclosingFunction`, and instead fall back to using raw
+// instruction pointers. As a result, symbol resolution cannot reliably
+// recover a canonical function entry address, and `sym.addr()` will often be
+// `None`. Therefore this test is disabled.
+#[cfg_attr(target_env = "pauthtest", ignore)]
 // FIXME: shouldn't ignore this test on i686-msvc, unsure why it's failing
 #[cfg_attr(all(target_arch = "x86", target_env = "msvc"), ignore)]
 #[inline(never)]
@@ -310,7 +317,10 @@ fn sp_smoke_test() {
                 let r = refs.pop().unwrap();
                 eprintln!("ref = {:p}", r);
                 if sp as usize != 0 {
-                    assert!(r > sp);
+                    // Stack grows down, however stack slots can be reused and
+                    // frame pointers ommited, `r == sp` should be a valid edge
+                    // case.
+                    assert!(r >= sp);
                     if let Some(child_ref) = child_ref {
                         assert!(sp >= child_ref);
                     }
