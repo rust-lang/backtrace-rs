@@ -1,11 +1,7 @@
 use core::{fmt, str};
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::path::Path;
-        use std::prelude::v1::*;
-    }
-}
+#[cfg(feature = "std")]
+use std::{path::Path, prelude::v1::*};
 
 use super::backtrace::Frame;
 use super::types::BytesOrWideString;
@@ -277,21 +273,18 @@ impl fmt::Debug for Symbol {
     }
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "cpp_demangle")] {
-        // Maybe a parsed C++ symbol, if parsing the mangled symbol as Rust
-        // failed.
-        struct OptionCppSymbol<'a>(Option<::cpp_demangle::BorrowedSymbol<'a>>);
+// Maybe a parsed C++ symbol, if parsing the mangled symbol as Rust failed.
+#[cfg(feature = "cpp_demangle")]
+struct OptionCppSymbol<'a>(Option<::cpp_demangle::BorrowedSymbol<'a>>);
 
-        impl<'a> OptionCppSymbol<'a> {
-            fn parse(input: &'a [u8]) -> OptionCppSymbol<'a> {
-                OptionCppSymbol(::cpp_demangle::BorrowedSymbol::new(input).ok())
-            }
+#[cfg(feature = "cpp_demangle")]
+impl<'a> OptionCppSymbol<'a> {
+    fn parse(input: &'a [u8]) -> OptionCppSymbol<'a> {
+        OptionCppSymbol(::cpp_demangle::BorrowedSymbol::new(input).ok())
+    }
 
-            fn none() -> OptionCppSymbol<'a> {
-                OptionCppSymbol(None)
-            }
-        }
+    fn none() -> OptionCppSymbol<'a> {
+        OptionCppSymbol(None)
     }
 }
 
@@ -430,22 +423,25 @@ pub fn clear_symbol_cache() {
     }
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(miri)] {
+cfg_select! {
+    miri => {
         mod miri;
         use miri as imp;
-    } else if #[cfg(all(windows, target_env = "msvc", not(target_vendor = "uwp")))] {
+    }
+    all(windows, target_env = "msvc", not(target_vendor = "uwp")) => {
         mod dbghelp;
         use dbghelp as imp;
-    } else if #[cfg(all(
+    }
+    all(
         any(unix, all(windows, target_env = "gnu")),
         not(target_vendor = "uwp"),
         not(target_os = "emscripten"),
         any(not(backtrace_in_libstd), feature = "backtrace"),
-    ))] {
+    ) => {
         mod gimli;
         use gimli as imp;
-    } else {
+    }
+    _ => {
         mod noop;
         use noop as imp;
     }

@@ -14,7 +14,7 @@ autoexamples = true
 autotests = true
 edition = "2024"
 exclude = ["/ci/"]
-rust-version = "1.88.0"
+rust-version = "1.95"
 
 [workspace]
 members = ['crates/cpp_smoke_test', 'crates/as-if-std']
@@ -26,7 +26,6 @@ exclude = [
 ]
 
 [dependencies]
-cfg-if = "1.0"
 rustc-demangle = "0.1.27"
 
 # Optionally enable the ability to serialize a `Backtrace`, controlled through
@@ -48,7 +47,7 @@ addr2line = { version = "0.25.0", default-features = false }
 libc = { version = "0.2.156", default-features = false }
 
 [target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies.object]
-version = "0.39.0"
+version = "0.39.1"
 default-features = false
 features = ['read_core', 'elf', 'macho', 'pe', 'xcoff', 'unaligned', 'archive']
 

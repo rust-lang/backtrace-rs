@@ -397,24 +397,22 @@ fn decompress_zstd(mut input: &[u8], mut output: &mut [u8]) -> Option<()> {
 const DEBUG_PATH: &str = "/usr/lib/debug";
 
 fn debug_path_exists() -> bool {
-    cfg_if::cfg_if! {
-        if #[cfg(any(target_os = "freebsd", target_os = "hurd", target_os = "linux"))] {
-            use core::sync::atomic::{AtomicU8, Ordering};
-            static DEBUG_PATH_EXISTS: AtomicU8 = AtomicU8::new(0);
+    if cfg!(any(
+        target_os = "freebsd",
+        target_os = "hurd",
+        target_os = "linux"
+    )) {
+        use core::sync::atomic::{AtomicU8, Ordering};
+        static DEBUG_PATH_EXISTS: AtomicU8 = AtomicU8::new(0);
 
-            let mut exists = DEBUG_PATH_EXISTS.load(Ordering::Relaxed);
-            if exists == 0 {
-                exists = if Path::new(DEBUG_PATH).is_dir() {
-                    1
-                } else {
-                    2
-                };
-                DEBUG_PATH_EXISTS.store(exists, Ordering::Relaxed);
-            }
-            exists == 1
-        } else {
-            false
+        let mut exists = DEBUG_PATH_EXISTS.load(Ordering::Relaxed);
+        if exists == 0 {
+            exists = if Path::new(DEBUG_PATH).is_dir() { 1 } else { 2 };
+            DEBUG_PATH_EXISTS.store(exists, Ordering::Relaxed);
         }
+        exists == 1
+    } else {
+        false
     }
 }
 
