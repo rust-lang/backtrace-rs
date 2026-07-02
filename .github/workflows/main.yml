@@ -88,7 +88,7 @@ jobs:
           RUSTFLAGS: "-C link-arg=-Wl,--compress-debug-sections=zlib"
       - run: cargo test --features "ruzstd"
         if: contains(matrix.os, 'ubuntu-24.04') ||
-            (contains(matrix.os, 'ubuntu') && contains(matrix.rust, 'nightly'))
+          (contains(matrix.os, 'ubuntu') && contains(matrix.rust, 'nightly'))
         env:
           RUSTFLAGS: "-C link-arg=-Wl,--compress-debug-sections=zstd"
 
@@ -105,7 +105,7 @@ jobs:
           CARGO_PROFILE_DEV_SPLIT_DEBUGINFO: packed
           CARGO_PROFILE_TEST_SPLIT_DEBUGINFO: packed
       # Test that, on macOS, binaries with no UUID work
-      - run: cargo clean && cargo test
+      - run: cargo clean && cargo test --target $(rustc --print host-tuple)
         if: matrix.os == 'macos-latest'
         env:
           RUSTFLAGS: "-C link-arg=-Wl,-no_uuid"
