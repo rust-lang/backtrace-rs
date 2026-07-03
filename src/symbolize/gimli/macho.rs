@@ -34,12 +34,11 @@ impl Mapping {
         // contains and try to find a macho file which has a matching UUID as
         // the one of our own file. If we find a match that's the dwarf file we
         // want to return.
-        if let Some(uuid) = uuid {
-            if let Some(parent) = path.parent() {
-                if let Some(mapping) = Mapping::load_dsym(parent, uuid) {
-                    return Some(mapping);
-                }
-            }
+        if let Some(uuid) = uuid
+            && let Some(parent) = path.parent()
+            && let Some(mapping) = Mapping::load_dsym(parent, uuid)
+        {
+            return Some(mapping);
         }
 
         // Looks like nothing matched our UUID, so let's at least return our own

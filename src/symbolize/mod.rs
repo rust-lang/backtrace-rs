@@ -376,10 +376,10 @@ impl<'a> fmt::Display for SymbolName<'a> {
             // This may fail to print if the demangled symbol isn't actually
             // valid, so handle the error here gracefully by not propagating
             // it outwards.
-            if let Some(ref cpp) = self.cpp_demangled.0 {
-                if let Ok(s) = cpp.demangle() {
-                    return s.fmt(f);
-                }
+            if let Some(ref cpp) = self.cpp_demangled.0
+                && let Ok(s) = cpp.demangle()
+            {
+                return s.fmt(f);
             }
         }
 
@@ -398,10 +398,10 @@ impl<'a> fmt::Debug for SymbolName<'a> {
             // This may fail to print if the demangled symbol isn't actually
             // valid, so handle the error here gracefully by not propagating
             // it outwards.
-            if let Some(ref cpp) = self.cpp_demangled.0 {
-                if let Ok(s) = cpp.demangle() {
-                    return s.fmt(f);
-                }
+            if let Some(ref cpp) = self.cpp_demangled.0
+                && let Ok(s) = cpp.demangle()
+            {
+                return s.fmt(f);
             }
         }
 
