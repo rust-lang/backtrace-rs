@@ -177,9 +177,9 @@ mod uw {
         ) -> _Unwind_Reason_Code;
     }
 
-    cfg_if::cfg_if! {
+    cfg_select! {
         // available since GCC 4.2.0, should be fine for our purpose
-        if #[cfg(all(
+        all(
             not(all(target_os = "android", target_arch = "arm")),
             not(all(target_os = "freebsd", target_arch = "arm")),
             not(all(target_os = "linux", target_arch = "arm")),
@@ -187,7 +187,7 @@ mod uw {
             not(all(target_os = "rtems", target_arch = "arm")),
             not(all(target_os = "vita", target_arch = "arm")),
             not(all(target_os = "nuttx", target_arch = "arm")),
-        ))] {
+        ) => {
             unsafe extern "C" {
                 pub fn _Unwind_GetIP(ctx: *mut _Unwind_Context) -> libc::uintptr_t;
                 pub fn _Unwind_FindEnclosingFunction(pc: *mut c_void) -> *mut c_void;
@@ -213,7 +213,8 @@ mod uw {
                 }
                 unsafe { _Unwind_GetGR(ctx, 15) }
             }
-        } else {
+        }
+        _ => {
             use core::ptr::addr_of_mut;
 
             // On android and arm, the function `_Unwind_GetIP` and a bunch of
