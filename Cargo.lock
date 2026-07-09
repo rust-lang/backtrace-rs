@@ -12,23 +12,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "adler2"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
-
-[[package]]
 name = "as-if-std"
 version = "0.1.0"
 dependencies = [
  "addr2line",
  "cfg-if",
  "libc",
- "miniz_oxide",
  "object",
  "rustc-demangle",
  "ruzstd",
  "windows-link",
+ "zlib-rs",
 ]
 
 [[package]]
@@ -41,12 +35,12 @@ dependencies = [
  "dylib-dep",
  "libc",
  "libloading",
- "miniz_oxide",
  "object",
  "rustc-demangle",
  "ruzstd",
  "serde",
  "windows-link",
+ "zlib-rs",
 ]
 
 [[package]]
@@ -112,15 +106,6 @@ name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
-
-[[package]]
-name = "miniz_oxide"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
-dependencies = [
- "adler2",
-]
 
 [[package]]
 name = "object"
@@ -209,3 +194,7 @@ name = "windows-link"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45e46c0661abb7180e7b9c281db115305d49ca1709ab8242adf09666d2173c65"
+
+[[package]]
+name = "zlib-rs"
+version = "0.6.5"

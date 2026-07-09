@@ -1,22 +1,24 @@
 #![allow(clippy::useless_conversion)]
 
-use super::Either;
-use super::mystd::ffi::OsStr;
-use super::mystd::fs;
-use super::mystd::os::unix::ffi::OsStrExt;
-use super::mystd::path::{Path, PathBuf};
-use super::{Context, Endian, EndianSlice, Mapping, Stash, gimli};
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::convert::{TryFrom, TryInto};
 use core::str;
-#[cfg(feature = "ruzstd")]
-use object::elf::ELFCOMPRESS_ZSTD;
-use object::elf::{ELF_NOTE_GNU, ELFCOMPRESS_ZLIB, NT_GNU_BUILD_ID, SHF_COMPRESSED};
+
+use object::elf::{
+    ELF_NOTE_GNU, ELFCOMPRESS_ZLIB, ELFCOMPRESS_ZSTD, NT_GNU_BUILD_ID, SHF_COMPRESSED,
+};
 use object::read::StringTable;
 use object::read::elf::{CompressionHeader, FileHeader, SectionHeader, SectionTable, Sym};
 use object::{BigEndian, Bytes, NativeEndian};
+use zlib_rs::InflateConfig;
+
+use super::mystd::ffi::OsStr;
+use super::mystd::fs;
+use super::mystd::os::unix::ffi::OsStrExt;
+use super::mystd::path::{Path, PathBuf};
+use super::{Context, Either, Endian, EndianSlice, Mapping, Stash, gimli};
 
 #[cfg(target_pointer_width = "32")]
 type Elf = object::elf::FileHeader32<NativeEndian>;
@@ -76,9 +78,7 @@ impl Mapping {
                 super::mmap::Mmap::map(&file, usize::try_from(len - zip_offset).ok()?, zip_offset)
             }?;
 
-            Mapping::mk(map, |map, stash| {
-                Context::new(stash, Object::parse(&map)?, None, None)
-            })
+            Mapping::mk(map, |map, stash| Context::new(stash, Object::parse(&map)?, None, None))
         }
 
         // if ZIP offset is given, try mapping as a ZIP-embedded library
@@ -166,13 +166,9 @@ impl<'a> Object<'a> {
         let elf = Elf::parse(data).ok()?;
         let endian = elf.endian().ok()?;
         let sections = elf.sections(endian, data).ok()?;
-        let mut syms = sections
-            .symbols(endian, data, object::elf::SHT_SYMTAB)
-            .ok()?;
+        let mut syms = sections.symbols(endian, data, object::elf::SHT_SYMTAB).ok()?;
         if syms.is_empty() {
-            syms = sections
-                .symbols(endian, data, object::elf::SHT_DYNSYM)
-                .ok()?;
+            syms = sections.symbols(endian, data, object::elf::SHT_DYNSYM).ok()?;
         }
         let strings = syms.strings();
 
@@ -195,21 +191,11 @@ impl<'a> Object<'a> {
                 let address = sym.st_value(endian).into();
                 let size = sym.st_size(endian).into();
                 let name = sym.st_name(endian);
-                ParsedSym {
-                    address,
-                    size,
-                    name,
-                }
+                ParsedSym { address, size, name }
             })
             .collect::<Vec<_>>();
         syms.sort_unstable_by_key(|s| s.address);
-        Some(Object {
-            endian,
-            data,
-            sections,
-            strings,
-            syms,
-        })
+        Some(Object { endian, data, sections, strings, syms })
     }
 
     pub fn section(&self, stash: &'a Stash, name: &str) -> Option<&'a [u8]> {
@@ -230,10 +216,21 @@ impl<'a> Object<'a> {
                 ELFCOMPRESS_ZLIB => {
                     let size = usize::try_from(header.ch_size(self.endian)).ok()?;
                     let buf = stash.allocate(size);
+
+                    // static WRITTEN: crate::sync::OnceLock<bool> = crate::sync::OnceLock::new();
+                    // WRITTEN.get_or_init(|| {
+                    //     eprintln!("section");
+                    //     eprintln!("{size}");
+                    //     use crate::fs;
+                    //     fs::write("/tmp/data.txt", data.0).unwrap();
+                    //     true
+                    // });
+                    eprintln!("{}", data.0.len());
+
                     decompress_zlib(data.0, buf)?;
+                    // eprintln!("DECOMPRESSION OK");
                     return Some(buf);
                 }
-                #[cfg(feature = "ruzstd")]
                 ELFCOMPRESS_ZSTD => {
                     let size = usize::try_from(header.ch_size(self.endian)).ok()?;
                     let buf = stash.allocate(size);
@@ -270,14 +267,14 @@ impl<'a> Object<'a> {
         }
         let size = usize::try_from(data.read::<object::U32Bytes<_>>().ok()?.get(BigEndian)).ok()?;
         let buf = stash.allocate(size);
+
+        eprintln!("other");
         decompress_zlib(data.0, buf)?;
         Some(buf)
     }
 
     fn section_header(&self, name: &str) -> Option<&<Elf as FileHeader>::SectionHeader> {
-        self.sections
-            .section_by_name(self.endian, name.as_bytes())
-            .map(|(_index, section)| section)
+        self.sections.section_by_name(self.endian, name.as_bytes()).map(|(_index, section)| section)
     }
 
     pub fn search_symtab(&self, addr: u64) -> Option<&[u8]> {
@@ -319,9 +316,7 @@ impl<'a> Object<'a> {
         let len = data.iter().position(|x| *x == 0)?;
         let filename = OsStr::from_bytes(&data[..len]);
         let offset = (len + 1 + 3) & !3;
-        let crc_bytes = data
-            .get(offset..offset + 4)
-            .and_then(|bytes| bytes.try_into().ok())?;
+        let crc_bytes = data.get(offset..offset + 4).and_then(|bytes| bytes.try_into().ok())?;
         let crc = u32::from_ne_bytes(crc_bytes);
         let path_debug = locate_debuglink(path, filename)?;
         Some((path_debug, crc))
@@ -340,27 +335,18 @@ impl<'a> Object<'a> {
 }
 
 fn decompress_zlib(input: &[u8], output: &mut [u8]) -> Option<()> {
-    use miniz_oxide::inflate::TINFLStatus;
-    use miniz_oxide::inflate::core::inflate_flags::{
-        TINFL_FLAG_PARSE_ZLIB_HEADER, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF,
-    };
-    use miniz_oxide::inflate::core::{DecompressorOxide, decompress};
+    let mut config = InflateConfig::default();
 
-    let (status, in_read, out_read) = decompress(
-        &mut DecompressorOxide::new(),
-        input,
-        output,
-        0,
-        TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF | TINFL_FLAG_PARSE_ZLIB_HEADER,
-    );
-    if status == TINFLStatus::Done && in_read == input.len() && out_read == output.len() {
+    // eprintln!("Input size: {}, output size: {}", input.len(), output.len());
+    let (_, res) = zlib_rs::decompress_slice(output, input, config);
+    if res == zlib_rs::ReturnCode::Ok {
         Some(())
     } else {
+        eprintln!("ERROR: {:?}", res);
         None
     }
 }
 
-#[cfg(feature = "ruzstd")]
 fn decompress_zstd(mut input: &[u8], mut output: &mut [u8]) -> Option<()> {
     use ruzstd::decoding::errors::{FrameDecoderError, ReadFrameHeaderError};
     use ruzstd::io::Read;
@@ -549,10 +535,7 @@ pub(super) fn handle_split_dwarf<'data>(
         let map_dwo = stash.cache_mmap(map_dwo);
         if let Some(dwo) = Object::parse(map_dwo) {
             return gimli::Dwarf::load(|id| -> Result<_, ()> {
-                let data = id
-                    .dwo_name()
-                    .and_then(|name| dwo.section(stash, name))
-                    .unwrap_or(&[]);
+                let data = id.dwo_name().and_then(|name| dwo.section(stash, name)).unwrap_or(&[]);
                 Ok(EndianSlice::new(data, Endian))
             })
             .ok()
