@@ -10,6 +10,12 @@ const ENABLED: bool = cfg!(all(
     target_os = "linux",
     // On ARM finding the enclosing function is simply returning the ip itself.
     not(target_arch = "arm"),
+    // On `aarch64-unknown-linux-pauthtest` `_Unwind_FindEnclosingFunction`
+    // cannot be used safely, because instruction pointers are not in a form
+    // suitable for authentication/resigning, so `symbol_address()` returns the
+    // raw IP instead. In this case the returned address may be inside the
+    // function body rather than at its entry.
+    not(target_env = "pauthtest"),
 ));
 
 #[test]
