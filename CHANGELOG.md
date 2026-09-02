@@ -8,6 +8,24 @@ As a unique component of `std` it may make exceptional changes in order to suppo
 
 ## [Unreleased]
 
+## [0.3.77](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.76...backtrace-v0.3.77) - 2026-09-02
+
+### Other
+
+- Merge pull request #765 from cuviper/deps
+- Update `object` to 0.40.0
+- Fix apt-get install failures in CI
+- Fix accuracy test with new cargo build layout
+- don't test -no_uuid in CI
+- Bump `object` to 0.39 (rust-lang/backtrace-rs#760)
+- Fix rustfmt issues.
+- [AIX] Update backtrace to account for libc changes and fix XCOFF parsing
+- Merge of rust-lang/backtrace-rs#739: Fix line-tables-only on macOS 15
+- Bump rustc-demangle (rust-lang/backtrace-rs#746)
+- Always use `extern "system"` for Windows imports
+- Merge pull request #745 from clubby789/func-cast
+- Fix `function_casts_as_integer` failures
+
 ## [0.3.76](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.75...backtrace-v0.3.76) - 2025-09-26
 
 ### Behavior
