@@ -414,12 +414,19 @@ impl Cache {
             .next()
     }
 
-    fn mapping_for_lib<'a>(&'a mut self, lib: usize) -> Option<(&'a mut Context<'a>, &'a Stash)> {
+    fn mapping_for_lib<'a>(
+        &'a mut self,
+        lib: usize,
+    ) -> Option<(&'a mut Context<'a>, &'a Stash, Option<(usize, Mapping)>)> {
+        let mut evicted = None;
         let cache_idx = self.mappings.iter().position(|(lib_id, _)| *lib_id == lib);
 
         let cache_entry = if let Some(idx) = cache_idx {
             self.mappings.move_to_front(idx)
         } else {
+            if self.mappings.is_full() {
+                evicted = self.mappings.pop_back();
+            }
             // When the mapping is not in the cache, create a new mapping and insert it,
             // which will also evict the oldest entry.
             create_mapping(&self.libraries[lib])
@@ -434,6 +441,7 @@ impl Cache {
         Some((
             unsafe { mem::transmute::<&'a mut Context<'static>, &'a mut Context<'a>>(cx) },
             stash,
+            evicted,
         ))
     }
 }
@@ -456,10 +464,26 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
                 None => return,
             };
 
+            // If the cache needs to evict an entry to add a new one, we store
+            // the evicted entry so we can restore it in case of recursion.
+            struct CacheGuard<'a>(&'a mut Cache, Option<(usize, Mapping)>);
+            impl Drop for CacheGuard<'_> {
+                fn drop(&mut self) {
+                    if let Some(entry) = self.1.take() {
+                        self.0.mappings.push_back(entry);
+                    }
+                }
+            }
+            let mut guard = CacheGuard(cache, None);
+            let cache = &mut guard.0;
+
             // Finally, get a cached mapping or create a new mapping for this file, and
             // evaluate the DWARF info to find the file/line/name for this address.
             let (cx, stash) = match cache.mapping_for_lib(lib) {
-                Some((cx, stash)) => (cx, stash),
+                Some((cx, stash, evicted)) => {
+                    guard.1 = evicted;
+                    (cx, stash)
+                }
                 None => return,
             };
             let mut any_frames = false;

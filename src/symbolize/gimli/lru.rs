@@ -35,6 +35,41 @@ impl<T, const N: usize> Lru<T, N> {
     }
 
     #[inline]
+    pub fn is_full(&self) -> bool {
+        self.len == N
+    }
+
+    #[inline]
+    pub fn pop_back(&mut self) -> Option<T> {
+        if self.len == 0 {
+            None
+        } else {
+            self.len -= 1;
+            // SAFETY: we maintain len invariant and bail if len was equal to 0
+            Some(unsafe { mem::transmute_copy(&self.arr[self.len]) })
+        }
+    }
+
+    #[inline]
+    pub fn push_back(&mut self, value: T) {
+        if N == 0 {
+            return;
+        } else if self.len == N {
+            self.len = N - 1;
+            // SAFETY: we bail on N == 0 but the first entry will be invalid
+            // until the loop below rotates the array.
+            unsafe { ptr::drop_in_place(self.arr.as_mut_ptr().cast::<T>()) };
+        }
+        let len_to_init = self.len + 1;
+        let mut last = MaybeUninit::new(value);
+        for elem in self.arr[0..len_to_init].iter_mut().rev() {
+            // OPT(size): using `mem::swap` allows surprising size regressions
+            last = mem::replace(elem, last);
+        }
+        self.len = len_to_init;
+    }
+
+    #[inline]
     pub fn push_front(&mut self, value: T) -> Option<&mut T> {
         if N == 0 {
             return None;
