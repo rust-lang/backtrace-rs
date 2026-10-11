@@ -8,6 +8,37 @@ As a unique component of `std` it may make exceptional changes in order to suppo
 
 ## [Unreleased]
 
+## [0.3.77](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.76...backtrace-v0.3.77) - 2026-10-11
+
+### Other
+
+- Switch to trusted publishing and rename default branch to main
+- Merge pull request #765 from cuviper/deps
+- Update `object` to 0.40.0
+- Fix apt-get install failures in CI
+- Fix accuracy test with new cargo build layout
+- Upgrade addr2line, libloading, miniz_oxide
+- don't test -no_uuid in CI
+- Bump `object` to 0.39 (rust-lang/backtrace-rs#760)
+- Fix rustfmt issues.
+- [AIX] Update backtrace to account for libc changes and fix XCOFF parsing
+- Swap `WaitForSingleObjectEx` with `WaitForSingleObject` and check result
+- Merge of rust-lang/backtrace-rs#739: Fix line-tables-only on macOS 15
+- Bump rustc-demangle (rust-lang/backtrace-rs#746)
+- Always use `extern "system"` for Windows imports
+- Merge pull request #745 from clubby789/func-cast
+- Fix `function_casts_as_integer` failures
+- Micro-optimize code size of /proc/maps parsing code
+- Micro-optimize code size of /proc/maps parsing code
+- Remove unused fields from /proc/maps parsing code
+- unsafe-wrap a stray deref-project -> &raw
+- update to edition 2024 and MSRV 1.88
+- update MSRV job to 1.88
+- Revert "Use macos-14 image for testing (rust-lang/backtrace-rs#733)"
+- simplify scan for xcoff .text section
+- deny(unsafe_op_in_unsafe_fn) in backtrace/win32.rs
+- GetCurrentProcess only once
+
 ## [0.3.76](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.75...backtrace-v0.3.76) - 2025-09-26
 
 ### Behavior
