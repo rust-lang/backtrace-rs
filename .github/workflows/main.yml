@@ -29,13 +29,15 @@ jobs:
           - os: windows-latest
             rust: stable-x86_64-msvc
           - os: windows-latest
-            rust: stable-i686-msvc
+            target: i686-pc-windows-msvc
+            rust: stable-x86_64-msvc
           - os: windows-latest
             rust: stable-x86_64-gnu
           - os: windows-latest
             rust: nightly-x86_64-msvc
           - os: windows-latest
-            rust: nightly-i686-msvc
+            target: i686-pc-windows-msvc
+            rust: nightly-x86_64-msvc
           - os: windows-latest
             rust: nightly-x86_64-gnu
     steps:
@@ -48,12 +50,20 @@ jobs:
       - run: echo RUSTFLAGS=-Dwarnings >> $GITHUB_ENV
         shell: bash
 
+      # Install the target toolchain if it differs from the host
+      - name: Install target (rustup)
+        run: |
+          rustup target add ${{ matrix.target }}
+          echo CARGO_BUILD_TARGET="${{ matrix.target }}" >> $GITHUB_ENV
+        shell: bash
+        if: ${{ matrix.target != null }}
+
       # full fidelity of backtraces on 32-bit msvc requires frame pointers, so
       # enable that for our tests
       - name: Force frame pointers
         run: echo RUSTFLAGS="-Cforce-frame-pointers $RUSTFLAGS" >> $GITHUB_ENV
         shell: bash
-        if: contains(matrix.rust, 'i686')
+        if: contains(matrix.target, 'i686')
 
       # Starting with Ubuntu 22.04 libc6-dbg is needed.
       - name: Install libc debug info
