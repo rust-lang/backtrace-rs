@@ -178,7 +178,7 @@ jobs:
           persist-credentials: false
       - run: rustup target add ${{ matrix.target }}
       - name: Run tests
-        run: cargo test ${{ contains(matrix.target, 'macabi') && '' || '--no-run' }} --target ${{ matrix.target }}
+        run: cargo test ${{ case(contains(matrix.target, 'macabi'), '', '--no-run') }} --target ${{ matrix.target }}
         env:
           RUSTFLAGS: -Dwarnings
 
