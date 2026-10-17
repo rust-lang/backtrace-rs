@@ -11,7 +11,7 @@ on:
 jobs:
   # Release unpublished packages.
   release-plz-release:
-    name: Release-plz release
+    name: Release-plz release # zizmor: ignore[concurrency-limits] Can't risk skipping a release: https://release-plz.dev/docs/github/quickstart#concurrency
     runs-on: ubuntu-24.04
     environment: publish
     if: ${{ github.repository_owner == 'rust-lang' }}
