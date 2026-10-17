@@ -1,9 +1,6 @@
 name: Release-plz
 
-permissions:
-  pull-requests: write
-  id-token: write
-  contents: write
+permissions: {}
 
 on:
   push: { branches: [main] }
