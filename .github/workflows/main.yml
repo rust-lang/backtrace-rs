@@ -41,7 +41,7 @@ jobs:
           - os: windows-latest
             rust: nightly-x86_64-gnu
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
       - name: Install Rust (rustup)
@@ -147,7 +147,7 @@ jobs:
     name: Windows AArch64
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
       - name: Install Rust
@@ -168,7 +168,7 @@ jobs:
           - target: x86_64-apple-ios
           - target: aarch64-apple-ios-macabi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
       - run: rustup target add ${{ matrix.target }}
@@ -200,7 +200,7 @@ jobs:
           - i686-linux-android
           - x86_64-linux-android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
       - name: Install Rust
@@ -215,7 +215,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
       - name: Install Rust
@@ -234,7 +234,7 @@ jobs:
           - x86_64-fortanix-unknown-sgx
           - x86_64-unknown-illumos
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
       - name: Install Rust
@@ -256,7 +256,7 @@ jobs:
           - os: ubuntu-24.04
           - os: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
       - name: Install Rust
@@ -267,7 +267,7 @@ jobs:
     name: Miri
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
       - name: Install Miri
