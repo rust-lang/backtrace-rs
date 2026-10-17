@@ -11,6 +11,10 @@ jobs:
     name: Release-plz release # zizmor: ignore[concurrency-limits] Can't risk skipping a release: https://release-plz.dev/docs/github/quickstart#concurrency
     runs-on: ubuntu-24.04
     environment: publish
+    permissions:
+      contents: write # Required by `release-plz/action` to push tags and create releases.
+      pull-requests: read # Required by `release-plz/action` to detect the release PR and its commits.
+      id-token: write # Required by `release-plz/action` to obtain an OIDC token.
     if: ${{ github.repository_owner == 'rust-lang' }}
     steps:
       - name: Checkout repository
@@ -31,6 +35,9 @@ jobs:
   release-plz-pr:
     name: Release-plz PR
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # Required by `release-plz/action` to push to the pull request branch.
+      pull-requests: write # Required by `release-plz/action` to create and update pull requests.
     if: ${{ github.repository_owner == 'rust-lang' }}
     concurrency:
       group: release-plz-${{ github.ref }}
