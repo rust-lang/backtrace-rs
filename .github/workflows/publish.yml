@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Install Rust toolchain
         run: rustup update stable --no-self-update && rustup default stable
       - name: Run release-plz
@@ -42,6 +43,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Install Rust toolchain
         run: rustup update stable --no-self-update && rustup default stable
       - name: Run release-plz

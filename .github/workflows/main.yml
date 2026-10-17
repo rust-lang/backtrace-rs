@@ -44,6 +44,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust (rustup)
         run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
         shell: bash
@@ -150,6 +151,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update stable --no-self-update && rustup default stable
         shell: bash
@@ -171,6 +173,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - run: rustup target add ${{ matrix.target }}
       - name: Run tests
         run: cargo test ${{ contains(matrix.target, 'macabi') && '' || '--no-run' }} --target ${{ matrix.target }}
@@ -203,6 +206,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update stable --no-self-update && rustup default stable
       - run: rustup target add ${{ matrix.target }}
@@ -218,6 +222,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update stable --no-self-update && rustup default stable && rustup component add rustfmt
       - run: cargo fmt --all -- --check
@@ -237,6 +242,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update nightly --no-self-update && rustup default nightly
       - run: rustup target add ${{ matrix.target }}
@@ -259,6 +265,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update 1.88.0 --no-self-update && rustup default 1.88.0
       - run: cargo build
@@ -270,6 +277,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Miri
         run: |
           rustup toolchain install nightly --component miri
