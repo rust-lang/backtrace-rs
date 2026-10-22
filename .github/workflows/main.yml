@@ -244,6 +244,7 @@ jobs:
         shell: bash
       - run: cargo build --target ${{ matrix.target }}
       - run: cargo build --manifest-path crates/as-if-std/Cargo.toml --target ${{ matrix.target }}
+      - run: cargo build --manifest-path crates/as-if-std/Cargo.toml --no-default-features --target ${{ matrix.target }}
 
   msrv:
     name: MSRV
