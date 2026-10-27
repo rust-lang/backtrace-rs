@@ -223,7 +223,7 @@ unsafe fn do_resolve(
     const SIZE: usize = 2 * MAX_SYM_NAME as usize + mem::size_of::<SYMBOL_INFOW>();
     let mut data = MaybeUninit::<Aligned8<[u8; SIZE]>>::zeroed();
     let info = data.as_mut_ptr().cast::<SYMBOL_INFOW>();
-    unsafe { (*info).MaxNameLen = MAX_SYM_NAME as u32 };
+    unsafe { (*info).MaxNameLen = MAX_SYM_NAME };
     // the struct size in C.  the value is different to
     // `size_of::<SYMBOL_INFOW>() - MAX_SYM_NAME + 1` (== 81)
     // due to struct alignment.

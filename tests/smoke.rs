@@ -20,7 +20,7 @@ fn get_actual_fn_pointer(fp: *mut c_void) -> *mut c_void {
             actual_fn_entry
         }
     } else {
-        fp as *mut c_void
+        fp
     }
 }
 
