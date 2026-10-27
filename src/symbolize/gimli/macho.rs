@@ -246,7 +246,7 @@ impl<'a> Object<'a> {
         Some(section.data(self.endian, self.data, offset).ok()?)
     }
 
-    pub fn search_symtab<'b>(&'b self, addr: u64) -> Option<&'b [u8]> {
+    pub fn search_symtab(&self, addr: u64) -> Option<&[u8]> {
         debug_assert!(!self.syms_sort_by_name);
         let i = match self.syms.binary_search_by_key(&addr, |(_, addr)| *addr) {
             Ok(i) => i,

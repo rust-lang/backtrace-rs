@@ -84,7 +84,7 @@ impl<'a> Object<'a> {
         )
     }
 
-    pub fn search_symtab<'b>(&'b self, addr: u64) -> Option<&'b [u8]> {
+    pub fn search_symtab(&self, addr: u64) -> Option<&[u8]> {
         // Note that unlike other formats COFF doesn't embed the size of
         // each symbol. As a last ditch effort search for the *closest*
         // symbol to a particular address and return that one. This gets
