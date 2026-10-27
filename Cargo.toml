@@ -42,7 +42,7 @@ windows-link = "0.2"
 
 [target.'cfg(not(all(windows, target_env = "msvc", not(target_vendor = "uwp"))))'.dependencies]
 miniz_oxide = { version = "0.9", default-features = false }
-ruzstd = { version = "0.8.1", default-features = false, optional = true }
+ruzstd = { version = "0.9.1", default-features = false, optional = true }
 addr2line = { version = "0.27.0", default-features = false }
 libc = { version = "0.2.156", default-features = false }
 
