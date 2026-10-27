@@ -8,6 +8,8 @@ on:
     branches:
       - main
 
+permissions: {}
+
 jobs:
   test:
     name: Test
@@ -41,9 +43,10 @@ jobs:
           - os: windows-latest
             rust: nightly-x86_64-gnu
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust (rustup)
         run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
         shell: bash
@@ -147,9 +150,10 @@ jobs:
     name: Windows AArch64
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update stable --no-self-update && rustup default stable
         shell: bash
@@ -168,12 +172,13 @@ jobs:
           - target: x86_64-apple-ios
           - target: aarch64-apple-ios-macabi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - run: rustup target add ${{ matrix.target }}
       - name: Run tests
-        run: cargo test ${{ contains(matrix.target, 'macabi') && '' || '--no-run' }} --target ${{ matrix.target }}
+        run: cargo test ${{ case(contains(matrix.target, 'macabi'), '', '--no-run') }} --target ${{ matrix.target }}
         env:
           RUSTFLAGS: -Dwarnings
 
@@ -200,9 +205,10 @@ jobs:
           - i686-linux-android
           - x86_64-linux-android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update stable --no-self-update && rustup default stable
       - run: rustup target add ${{ matrix.target }}
@@ -215,9 +221,10 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update stable --no-self-update && rustup default stable && rustup component add rustfmt
       - run: cargo fmt --all -- --check
@@ -234,9 +241,10 @@ jobs:
           - x86_64-fortanix-unknown-sgx
           - x86_64-unknown-illumos
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update nightly --no-self-update && rustup default nightly
       - run: rustup target add ${{ matrix.target }}
@@ -256,9 +264,10 @@ jobs:
           - os: ubuntu-24.04
           - os: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Rust
         run: rustup update 1.88.0 --no-self-update && rustup default 1.88.0
       - run: cargo build
@@ -267,9 +276,10 @@ jobs:
     name: Miri
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: true
+          persist-credentials: false
       - name: Install Miri
         run: |
           rustup toolchain install nightly --component miri
