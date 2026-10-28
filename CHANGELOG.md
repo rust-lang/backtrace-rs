@@ -8,6 +8,16 @@ As a unique component of `std` it may make exceptional changes in order to suppo
 
 ## [Unreleased]
 
+## [0.3.78](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.77...backtrace-v0.3.78) - 2026-10-28
+
+### Other
+
+- Rename `avma_to_svma` to clarify its return values
+- Clarify `Cache::avma_to_svma` with docs and better sig
+- remove deprecated package authors field (rust-lang/backtrace-rs#781)
+- replace custom `ptr_from_ref` with `ptr::from_ref` (rust-lang/backtrace-rs#782)
+- update dependencies in Cargo.lock (rust-lang/backtrace-rs#780)
+
 ## [0.3.77](https://github.com/rust-lang/backtrace-rs/compare/backtrace-v0.3.76...backtrace-v0.3.77) - 2026-10-27
 
 ### Platform Support

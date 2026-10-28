@@ -1,6 +1,6 @@
 [package]
 name = "backtrace"
-version = "0.3.77"
+version = "0.3.78"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/rust-lang/backtrace-rs"
