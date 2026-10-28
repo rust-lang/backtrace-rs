@@ -393,9 +393,10 @@ impl Cache {
     /// let avma: *const T = bias.wrapping_byte_offset(svma);
     /// ```
     ///
-    /// This is a safe function, so we cannot simply use `avma.byte_offset_from(bias)`, and
-    /// even if we could it would not be what we want since we want to give an actual answer.
-    fn avma_to_svma(&self, addr: *const u8) -> Option<(usize, usize)> {
+    /// This is a safe function, so we cannot simply use `avma.byte_offset_from(bias)`.
+    /// Even if we could, we want to instead give an actual answer that both identifies
+    /// the library by its index in Libraries, and then the SVMA in that library.
+    fn avma_to_lib_and_svma(&self, addr: *const u8) -> Option<(usize, usize)> {
         self.libraries
             .iter()
             .enumerate()
@@ -466,7 +467,8 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
 
     unsafe {
         Cache::with_global(|cache| {
-            let Some((lib_idx, svma)) = cache.avma_to_svma(addr.cast_const().cast::<u8>()) else {
+            let Some((lib_idx, svma)) = cache.avma_to_lib_and_svma(addr.cast_const().cast::<u8>())
+            else {
                 return;
             };
 
