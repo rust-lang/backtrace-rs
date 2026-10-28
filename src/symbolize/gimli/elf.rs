@@ -219,8 +219,7 @@ impl<'a> Object<'a> {
             // Check for DWARF-standard (gABI) compression, i.e., as generated
             // by ld's `--compress-debug-sections=zlib-gabi` and
             // `--compress-debug-sections=zstd` flags.
-            let flags: u64 = section.sh_flags(self.endian).into();
-            if (flags & u64::from(SHF_COMPRESSED)) == 0 {
+            if !section.sh_flags(self.endian).contains(SHF_COMPRESSED) {
                 // Not compressed.
                 return Some(data.0);
             }
