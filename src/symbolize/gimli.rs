@@ -25,14 +25,13 @@ mod mystd {
 #[cfg(not(backtrace_in_libstd))]
 extern crate std as mystd;
 
-cfg_if::cfg_if! {
-    if #[cfg(windows)] {
+cfg_select! {
+    windows => {
         #[path = "gimli/mmap_windows.rs"]
         mod mmap;
-    } else if #[cfg(target_vendor = "apple")] {
-        #[path = "gimli/mmap_unix.rs"]
-        mod mmap;
-    } else if #[cfg(any(
+    }
+    any(
+        target_vendor = "apple",
         target_os = "android",
         target_os = "freebsd",
         target_os = "fuchsia",
@@ -44,10 +43,11 @@ cfg_if::cfg_if! {
         target_os = "illumos",
         target_os = "aix",
         target_os = "cygwin",
-    ))] {
+    ) => {
         #[path = "gimli/mmap_unix.rs"]
         mod mmap;
-    } else {
+    }
+    _ => {
         #[path = "gimli/mmap_fake.rs"]
         mod mmap;
     }
@@ -195,33 +195,39 @@ fn mmap(path: &Path) -> Option<Mmap> {
     unsafe { Mmap::map(&file, len, 0) }
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(any(windows, target_os = "cygwin"))] {
+cfg_select! {
+    any(windows, target_os = "cygwin") => {
         mod coff;
         use self::coff::{handle_split_dwarf, Object};
-    } else if #[cfg(any(target_vendor = "apple"))] {
+    }
+    target_vendor = "apple" => {
         mod macho;
         use self::macho::{handle_split_dwarf, Object};
-    } else if #[cfg(target_os = "aix")] {
+    }
+    target_os = "aix" => {
         mod xcoff;
         use self::xcoff::{handle_split_dwarf, Object};
-    } else {
+    }
+    _ => {
         mod elf;
         use self::elf::{handle_split_dwarf, Object};
     }
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(any(windows, target_os = "cygwin"))] {
+cfg_select! {
+    any(windows, target_os = "cygwin") => {
         mod libs_windows;
         use libs_windows::native_libraries;
-    } else if #[cfg(target_vendor = "apple")] {
+    }
+    target_vendor = "apple" => {
         mod libs_macos;
         use libs_macos::native_libraries;
-    } else if #[cfg(target_os = "illumos")] {
+    }
+    target_os = "illumos" => {
         mod libs_illumos;
         use libs_illumos::native_libraries;
-    } else if #[cfg(all(
+    }
+    all(
         any(
             target_os = "linux",
             target_os = "fuchsia",
@@ -233,22 +239,26 @@ cfg_if::cfg_if! {
             target_os = "android",
         ),
         not(target_env = "uclibc"),
-    ))] {
+    ) => {
         mod libs_dl_iterate_phdr;
         use libs_dl_iterate_phdr::native_libraries;
         #[path = "gimli/parse_running_mmaps_unix.rs"]
         mod parse_running_mmaps;
-    } else if #[cfg(target_env = "libnx")] {
+    }
+    target_env = "libnx" => {
         mod libs_libnx;
         use libs_libnx::native_libraries;
-    } else if #[cfg(target_os = "haiku")] {
+    }
+    target_os = "haiku" => {
         mod libs_haiku;
         use libs_haiku::native_libraries;
-    } else if #[cfg(target_os = "aix")] {
+    }
+    target_os = "aix" => {
         mod libs_aix;
         use libs_aix::native_libraries;
-    } else {
-        // Everything else should doesn't know how to load native libraries.
+    }
+    _ => {
+        // Everything else doesn't know how to load native libraries.
         fn native_libraries() -> Vec<Library> {
             Vec::new()
         }
@@ -316,12 +326,14 @@ struct LibrarySegment {
 }
 
 fn create_mapping(lib: &Library) -> Option<Mapping> {
-    cfg_if::cfg_if! {
-        if #[cfg(target_os = "aix")] {
+    cfg_select! {
+        target_os = "aix" => {
             Mapping::new(lib.name.as_ref(), &lib.member_name)
-        } else if #[cfg(target_os = "android")] {
+        }
+        target_os = "android" => {
             Mapping::new_android(lib.name.as_ref(), lib.zip_offset)
-        } else {
+        }
+        _ => {
             Mapping::new(lib.name.as_ref())
         }
     }

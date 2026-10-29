@@ -12,7 +12,7 @@ autoexamples = true
 autotests = true
 edition = "2024"
 exclude = ["/ci/"]
-rust-version = "1.88.0"
+rust-version = "1.95"
 
 [workspace]
 members = ['crates/cpp_smoke_test', 'crates/as-if-std']
@@ -24,7 +24,6 @@ exclude = [
 ]
 
 [dependencies]
-cfg-if = "1.0"
 rustc-demangle = "0.1.27"
 
 # Optionally enable the ability to serialize a `Backtrace`, controlled through
