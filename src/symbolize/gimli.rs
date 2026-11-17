@@ -13,6 +13,7 @@ use addr2line::gimli;
 use core::convert::TryInto;
 use core::mem;
 use libc::c_void;
+use mystd::env;
 use mystd::ffi::OsString;
 use mystd::fs::File;
 use mystd::path::Path;
@@ -143,6 +144,10 @@ impl<'data> Context<'data> {
                     Ok(EndianSlice::new(data, Endian))
                 })
                 .ok()?;
+        }
+
+        if env::var_os("RUST_LIB_BACKTRACE_CACHE_SHARED_ABBREVIATIONS").is_some() {
+            sections.populate_abbreviations_cache(gimli::AbbreviationsCacheStrategy::Duplicates);
         }
         let dwarf = addr2line::Context::from_dwarf(sections).ok()?;
 
