@@ -269,7 +269,7 @@ jobs:
           submodules: true
           persist-credentials: false
       - name: Install Rust
-        run: rustup update 1.88.0 --no-self-update && rustup default 1.88.0
+        run: rustup update 1.95 --no-self-update && rustup default 1.95
       - run: cargo build
 
   miri:

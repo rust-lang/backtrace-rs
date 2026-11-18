@@ -121,20 +121,18 @@ pub use self::symbolize::clear_symbol_cache;
 mod print;
 pub use print::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
+cfg_select! {
+    feature = "std" => {
         pub use self::backtrace::trace;
         pub use self::symbolize::{resolve, resolve_frame};
         pub use self::capture::{Backtrace, BacktraceFrame, BacktraceSymbol};
         mod capture;
     }
+    _ => {}
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(all(target_env = "sgx", target_vendor = "fortanix", not(feature = "std")))] {
-        pub use self::backtrace::set_image_base;
-    }
-}
+#[cfg(all(target_env = "sgx", target_vendor = "fortanix", not(feature = "std")))]
+pub use self::backtrace::set_image_base;
 
 #[cfg(feature = "std")]
 mod lock {
