@@ -21,7 +21,7 @@ fn main() {
 
         if let Some(name) = symbols[0].name() {
             let name = format!("{name:#}");
-            if name == "debuglink::main" {
+            if name == "debuglink::main" || name == "main" {
                 found_main = true;
                 let filename = symbols[0].filename().unwrap();
                 assert_eq!(filename, expect);
